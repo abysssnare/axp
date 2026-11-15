@@ -63,3 +63,6 @@ server.log
 /tests/
 Caddyfile
 bun.lock
+
+# 独立测试仓库（拥有自己的 .git）
+/axp-plugin-memory/

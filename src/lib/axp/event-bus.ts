@@ -28,8 +28,8 @@ export async function publish(input: {
 }): Promise<BusEvent> {
   const { topic, source, target = null, payload = {}, level = 'info' } = input
 
-  // 订阅权校验：插件发布 axp:* 保留主题是被禁止的
-  if (input.publisher && topic.startsWith('axp:')) {
+  // 订阅权校验：非 memory 扩展点插件发布 axp:* 保留主题是被禁止的
+  if (input.publisher && topic.startsWith('axp:') && !topic.startsWith('axp:memory:') && !topic.startsWith('axp:health:')) {
     throw new Error(
       `EPERM: plugin "${source}" attempted to publish reserved topic "${topic}"`,
     )

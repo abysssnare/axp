@@ -336,7 +336,8 @@ export const SPEC_SECTIONS: SpecSection[] = [
       {
         kind: 'list',
         items: [
-          'axp:* 保留主题仅内核可发布；插件发布保留主题是协议违规。',
+          'axp:* 保留主题中，§7.1 表内标注发布者为「记忆插件」的 axp:memory:* 主题与 axp:health:tick 允许由对应扩展点的插件发布；其余保留主题仅内核可发布。',
+          '插件自定义消息必须使用 plugin: 前缀命名空间（如 plugin:my-feature:ping）。',
           '未声明 trigger:subscribe 的插件仅可订阅清单 subscribes 列出的主题。',
           '订阅通配符仅支持尾部 *：axp:memory:* 合法，axp:*:written 非法。',
           '审计轨迹至少保留最近 N 条（宿主可配置），演练场默认 40 条。',
