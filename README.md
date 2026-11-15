@@ -97,6 +97,13 @@ Prisma ORM (SQLite) · Lucide Icons · Zustand
 - 规范文本与参考实现：**Apache-2.0**
 - 站点代码：**Apache-2.0**
 
+## 仓库沿革
+
+本仓库经历一次整体重设计：
+
+- **早期（历史提交完整保留，`git log` 可溯）**：Android 专属插件描述格式 **AXP — Agent eXtension Package**（v1.0–v1.1.1，13 篇规范 + 校验器 + CLI + 参考运行时），配套旧格式样本仓库 [axp-plugin-memory](https://github.com/abysssnare/axp-plugin-memory)
+- **当前（主分支现行树）**：**智能体扩展协议（Agent eXtension Protocol）v1.1.0** 的完整规范、参考内核与交互式站点，即本 README 所述全部内容
+
 ## 相关仓库
 
 | 仓库 | 说明 |
