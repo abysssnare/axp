@@ -12,9 +12,11 @@ import { useAxp } from './store'
 import {
   Boxes,
   Brain,
+  Download,
   FileJson,
   HeartPulse,
   Network,
+  Package,
   ShieldCheck,
   Workflow,
 } from 'lucide-react'
@@ -117,6 +119,54 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: string) => void 
             >
               阅读完整规范
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* SDK 下载 */}
+      <section>
+        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50/40">
+          <div className="flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center">
+            <div className="flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <Package className="h-4 w-4 text-emerald-700" />
+                <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-emerald-700">
+                  DELIVERABLE
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold tracking-tight text-zinc-900">
+                AXP SDK 完整交付包
+              </h3>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-600">
+                一键打包：SPEC.md（11 章完整规范 + 变更附录）、kernel/（五模块参考内核）、
+                plugins/axp.core.memory（官方记忆插件）、template/（插件开发模板）。
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['SPEC.md', 'kernel/types.ts', 'kernel/registry.ts', 'kernel/kernel.ts', 'plugins/…', 'template/…'].map(
+                  (f) => (
+                    <span
+                      key={f}
+                      className="rounded bg-white px-2 py-1 font-mono text-[10px] text-zinc-600 ring-1 ring-zinc-200"
+                    >
+                      {f}
+                    </span>
+                  ),
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-3 lg:items-end">
+              <a
+                href="/api/package"
+                download
+                className="inline-flex h-12 items-center gap-2 rounded-xl bg-zinc-900 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                <Download className="h-4 w-4" />
+                下载 axp-sdk-{SPEC_META.version}.zip
+              </a>
+              <span className="font-mono text-[10px] text-zinc-400">
+                实时生成 · zip · Apache-2.0
+              </span>
+            </div>
           </div>
         </div>
       </section>
