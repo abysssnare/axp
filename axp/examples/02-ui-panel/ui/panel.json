@@ -1,0 +1,14 @@
+{
+  "axpUi": "1.0",
+  "root": "main",
+  "theme": "host",
+  "state": { "scroll": 0, "selected": null },
+  "nodes": [
+    { "id": "main", "type": "Scaffold", "props": { "title": "屏幕面板" }, "children": ["title", "tree", "row"] },
+    { "id": "title", "type": "Text", "props": { "text": "当前界面节点", "style": "title" } },
+    { "id": "tree", "type": "Text", "props": { "text": "${surface:axp://x/com.example.panel/vision/screen.text}", "style": "mono", "maxLines": 20 } },
+    { "id": "row", "type": "Row", "props": { "spacing": 8 }, "children": ["tapBtn", "refreshBtn"] },
+    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } },
+    { "id": "refreshBtn", "type": "Button", "props": { "label": "刷新", "action": "ui.panel.refresh" } }
+  ]
+}

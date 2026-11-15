@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "spec-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "specVersion（须与 axp/spec/index.json 一致）"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  spec-release:
+    name: 一致性检查 + spec 发布包
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 解析版本号
+        id: ver
+        run: |
+          V=$(node -p "require('./axp/spec/index.json').specVersion")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "specVersion from index.json: $V"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME#spec-v}"
+            if [ "$TAG" != "$V" ]; then
+              echo "::error::tag $TAG != specVersion $V"; exit 1
+            fi
+          fi
+          if [ -n "${{ inputs.version }}" ] && [ "${{ inputs.version }}" != "$V" ]; then
+            echo "::error::dispatch version != specVersion $V"; exit 1
+          fi
+
+      - name: 规范一致性 + 构建前数据完整性
+        run: |
+          node scripts/spec-check.mjs
+          node scripts/site-check.mjs --prebuild
+
+      - name: 四套自检
+        run: |
+          node axp/validator/test/run-tests.mjs
+          node axp/runtime/test/smoke.mjs
+          for d in axp/examples/*/; do node axp/validator/src/validate.mjs "$d"; done
+
+      - name: 打包 spec/ + 校验和
+        run: |
+          V="${{ steps.ver.outputs.version }}"
+          cd axp
+          zip -qr "../axp-spec-${V}.zip" spec CHANGELOG.md README.md LICENSE
+          cd ..
+          unzip -l "axp-spec-${V}.zip" | grep -E "spec/index.json|spec/01-format.md"
+          sha256sum "axp-spec-${V}.zip" > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || format('spec-v{0}', steps.ver.outputs.version) }}
+          name: AXP spec v${{ steps.ver.outputs.version }}
+          body_path: axp/CHANGELOG.md
+          files: |
+            axp-spec-${{ steps.ver.outputs.version }}.zip
+            SHA256SUMS
+          generate_release_notes: false

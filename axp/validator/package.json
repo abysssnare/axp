@@ -1,0 +1,13 @@
+{
+  "name": "axp-validator",
+  "version": "1.0.0",
+  "description": "Offline, dependency-free validator for AXP v1.0 manifests",
+  "type": "module",
+  "main": "src/validate.mjs",
+  "bin": { "axp-validate": "src/validate.mjs" },
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "validate:examples": "node src/validate.mjs ../examples/01-hello && node src/validate.mjs ../examples/02-ui-panel && node src/validate.mjs ../examples/03-hot-reload"
+  }
+}

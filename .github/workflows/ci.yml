@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  axp-selfcheck:
+    name: AXP 规范自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Schema 可解析
+        run: node -e "JSON.parse(require('fs').readFileSync('axp/spec/02-manifest.schema.json','utf8')); console.log('schema OK')"
+      - name: 四个示例清单校验全绿
+        run: |
+          cd axp
+          for d in examples/*/; do node validator/src/validate.mjs "$d" || exit 1; done
+      - name: 行为用例（31 条）
+        run: node axp/validator/test/run-tests.mjs
+      - name: 独立引擎交叉复核（43 项）
+        run: |
+          pip install jsonschema==4.26.0
+          python3 axp/validator/test/schema-crosscheck.py
+      - name: 参考运行时端到端（30 断言）
+        run: node axp/runtime/test/smoke.mjs
+      - name: axp pack 烟雾测试
+        run: |
+          cd axp
+          node cli/bin/axp.mjs pack examples/01-hello -o /tmp/hello.axp
+          unzip -l /tmp/hello.axp | grep axp.json
+
+  spec-consistency:
+    name: 规范一致性自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 规范 / schema / 错误码 / 数字 / 链接自洽
+        run: node scripts/spec-check.mjs
+      - name: 构建前 axp/ 数据完整性
+        run: node scripts/site-check.mjs --prebuild
+
+  web-lint:
+    name: 文档站点 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  web-build:
+    name: 文档站点构建 + 产物自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: 构建前 axp/ 数据完整性（零依赖）
+        run: node scripts/site-check.mjs --prebuild
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: standalone 产物自包含性
+        run: node scripts/site-check.mjs
+
+  docs-links:
+    name: 全仓 Markdown 链接检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 全仓 Markdown 链接无断链
+        run: |
+          node - <<'NODE'
+          const fs = require('fs'), path = require('path');
+          const root = '.';
+          const skip = new Set(['node_modules', '.git', '.next', '_upstream', '_fresh', '_fresh2']);
+          const files = [];
+          (function walk(d){ for (const e of fs.readdirSync(d,{withFileTypes:true})) {
+            const p = path.join(d,e.name);
+            if (e.isDirectory()) { if (skip.has(e.name)) continue; walk(p); }
+            else if (p.endsWith('.md')) files.push(p);
+          }})(root);
+          let bad = [];
+          let checked = 0;
+          for (const f of files) {
+            const md = fs.readFileSync(f,'utf8');
+            for (const m of md.matchAll(/\]\(([^)#\s]+)\)/g)) {
+              let href = m[1];
+              if (/^https?:|^mailto:/.test(href)) continue;
+              checked++;
+              const baseDir = path.dirname(f);
+              const resolved = path.resolve(baseDir, href);
+              if (!fs.existsSync(resolved)) bad.push(`${f}: ${href}`);
+            }
+          }
+          if (bad.length) { console.error('broken links:\n' + bad.join('\n')); process.exit(1); }
+          console.log(`all ${files.length} markdown files, ${checked} local links OK`);
+          NODE

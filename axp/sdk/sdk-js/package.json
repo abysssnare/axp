@@ -1,0 +1,8 @@
+{
+  "name": "@axp/sdk-js",
+  "version": "1.0.0",
+  "description": "TypeScript types for AXP v1.0 manifests and impl context",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "sideEffects": false
+}

@@ -1,2 +1,53 @@
-skills/
-node_modules/
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# database (本地 sqlite，不入库)
+/db/
+
+# 本沙箱环境目录（与 AXP 项目无关）
+/upload/
+/download/
+/mini-services/
+/skills/
+/examples/
+/tests/
+/.zscripts/
+Caddyfile
+
+# logs
+*.log
+dev.log
+server.log
+
+# misc
+.DS_Store
+*.pem
+coverage/
+.vercel
+*.tsbuildinfo
+.claude
+.z-ai-config
+/test
+/prompt
+/tool-results/
+local-*

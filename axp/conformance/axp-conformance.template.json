@@ -1,0 +1,15 @@
+{
+  "schema": "axp-conformance/1.0",
+  "host": {
+    "name": "your-host",
+    "version": "0.0.0",
+    "platform": "Android 14 / API 34",
+    "repository": "https://example.com/your-host"
+  },
+  "claimedLevel": "AXP-0",
+  "runAt": "2026-11-15T00:00:00Z",
+  "reproduce": "node conformance/run.mjs --level AXP-0",
+  "summary": { "total": 0, "passed": 0, "failed": 0 },
+  "results": [],
+  "notes": "模板：results 中每条含 id / passed / observed / expected / at / hostVersion。claimedLevel 对应的全部断言通过后才可声明该等级。"
+}
