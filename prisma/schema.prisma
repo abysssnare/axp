@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// AXP 插件注册表 —— 插件清单 (axp.plugin.json) 的运行时投影
+model Plugin {
+  id           String   @id @default(cuid())
+  pluginId     String   @unique // 反向域名式插件标识，如 axp.core.memory
+  name         String
+  version      String // 语义化版本，如 1.1.0
+  description  String
+  category     String // memory | tool | trigger | policy | ui
+  status       String   @default("registered") // registered | resolved | active | degraded | error | disabled
+  permissions  String   @default("[]") // JSON: 声明的权限能力列表
+  provides     String   @default("[]") // JSON: 提供的扩展点声明
+  dependsOn    String   @default("[]") // JSON: 依赖的插件 id 列表
+  manifest     String   @default("{}") // JSON: 完整插件清单
+  health       Int      @default(100) // 健康分 0-100（v1.1.0 心跳协议）
+  loadOrder    Int      @default(0) // 依赖拓扑排序后的激活次序
+  activations  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// AXP 事件总线日志 —— 所有 axp:* 主题消息的审计轨迹
+model EventLog {
+  id        String   @id @default(cuid())
+  topic     String // 主题，如 axp:plugin:activated
+  source    String // 发布者：插件 id 或 host
+  target    String? // 订阅者定向（可选，广播为 null）
+  payload   String   @default("{}") // JSON 负载
+  level     String   @default("info") // debug | info | warn | error
+  createdAt DateTime @default(now())
+}
+
+// 记忆条目 —— 由记忆扩展点 (agent.memory) 定义的数据契约
+model MemoryEntry {
+  id             String   @id @default(cuid())
+  pluginId       String   @default("axp.core.memory")
+  scope          String   @default("default") // 命名空间隔离：记忆域
+  key            String
+  content        String
+  tags           String   @default("[]") // JSON 字符串数组
+  importance     Int      @default(3) // 重要性 1-5，影响召回排序
+  accessCount    Int      @default(0)
+  pinned         Boolean  @default(false) // 置顶记忆永不淘汰
+  createdAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+}
