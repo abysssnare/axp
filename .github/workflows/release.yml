@@ -62,7 +62,7 @@ jobs:
           sha256sum -c SHA256SUMS
 
       - name: 创建 Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'push' && github.ref_name || format('spec-v{0}', steps.ver.outputs.version) }}
           name: AXP spec v${{ steps.ver.outputs.version }}
