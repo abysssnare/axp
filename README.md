@@ -220,6 +220,8 @@ AXP-0（装载 + tools）→ AXP-1（+ surfaces / knowledge）→ AXP-2（+ agen
 
 ## 参考实现状态
 
+> **第三方插件样本**：[`abysssnare/axp-plugin-memory`](https://github.com/abysssnare/axp-plugin-memory) —— 用本规范编写的「简单记忆系统」测试插件（L0 / AXP-2，五件套工具 + Surface + 知识体 + 子代理 + UI，27 条参考运行时端到端断言，独立仓库独立 CI）。
+
 | 层次 | 状态 |
 |---|---|
 | 格式规范 / schema / 校验器 / CLI / 文档 / 示例 | ✅ 完成 |

@@ -245,6 +245,7 @@
 - 修复 `scripts/spec-check.mjs` 全仓 md 扫描误入不入库目录（沙箱 `skills/` 等）的问题：目录跳过名单与 `.gitignore` 对齐
 - 删除死配置 `tailwind.config.ts`（v4 CSS-first：`globals.css` 无 `@config` 引用，JS 配置从未生效）
 - 仓库自 `Ultra-Guru/axp` 迁至 `abysssnare/axp`（`git push origin main`，CI 五 job 首跑全绿）
+- **首个第三方插件样本仓库** [`abysssnare/axp-plugin-memory`](https://github.com/abysssnare/axp-plugin-memory)：简单记忆系统（L0 / AXP-2，工具五件套 + Surface + 知识体 + 子代理 + UI + 事件），独立 CI 做校验 → 参考运行时 27 条端到端断言 → `pack .axp` 产物上传；为 F10 的「第三方示例库」提供了第一个插件侧样本（宿主侧认证仍未开始）
 
 ### 仍未完成（优先级不变）
 
