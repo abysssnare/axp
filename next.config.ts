@@ -14,11 +14,12 @@ const nextConfig: NextConfig = {
     "/**": ["./axp/**/*"],
   },
 
+  // E07：tsc --noEmit 已全绿（见 scripts/ 目录自检），构建不再忽略类型错误
   typescript: {
-    // TODO(E07): 先跑通 tsc --noEmit / bun run build 并修完类型错误，再改为 false
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  // E09：并发模式下的副作用与 hydration 问题在开发期暴露
+  reactStrictMode: true,
 };
 
 export default nextConfig;

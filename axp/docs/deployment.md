@@ -76,13 +76,13 @@ docker run --rm -p 3000:3000 -e PORT=3000 axp-site:1.1.0
 | `NODE_ENV` | 建议 | `production` | 生产模式 |
 | `PORT` | 否 | `3000` | 监听端口 |
 | `HOSTNAME` | 否 | `0.0.0.0` | 绑定地址 |
-| `DATABASE_URL` | 否 | — | Prisma 模板残留，站点当前**不读数据库**；见任务 G07 |
+| `NEXT_TELEMETRY_DISABLED` | 否 | — | 关闭 Next.js 遥测 |
 
-> 站点当前不依赖数据库；`prisma/` 与 `src/lib/db.ts` 是脚手架残留，清理见 [`../../ROADMAP-ALL-TASKS.md`](../../ROADMAP-ALL-TASKS.md) G07。
+> 站点不依赖数据库：Prisma 模板已在 v1.1.1（任务 G07）移除，无需 `DATABASE_URL`。
 
 ## 6. 构建依赖的外网访问
 
-`src/app/layout.tsx` 使用 `next/font/google`（Geist / Geist_Mono），`next build` 需要访问 `fonts.googleapis.com`。离线或受限网络 `MUST` 改为本地 / 自托管字体（任务 D19），否则构建会失败。
+v1.1.1（任务 D19）起 `layout.tsx` 改用 npm 包 `geist` 自托管字体（woff2 随依赖分发并被 standalone 追踪）：`next build` **不再访问** `fonts.googleapis.com`，离线 / 受限网络可复现构建。`bun install` 本身仍按包管理器语义走源。
 
 ## 7. 部署后检查清单
 

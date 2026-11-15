@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, ChevronDown, FolderTree, Loader2, Package, PlayCircle, XCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, CheckCircle2, ChevronDown, Copy, Download, FolderTree, Loader2, Package, PlayCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import type { ExampleData } from "@/lib/axp-server";
@@ -40,7 +39,89 @@ export interface ValidateResponse {
   } | null;
 }
 
-export function ValidateResultPanel({ result, busy }: { result: ValidateResponse | null; busy: boolean }) {
+/* ------------------------- 剪贴板 / 瞬时反馈 ------------------------- */
+
+/** 复制文本到剪贴板：优先 navigator.clipboard，失败时回退 execCommand */
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // 回退：非安全上下文 / 剪贴板权限被拒
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** 瞬时反馈（默认约 2 秒后自动清除），用于「已复制 / 已下载」提示 */
+export function useTransientFeedback<T>(duration = 2000): [T | null, (value: T) => void] {
+  const [value, setValue] = useState<T | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const show = useCallback(
+    (v: T) => {
+      setValue(v);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setValue(null), duration);
+    },
+    [duration]
+  );
+
+  return [value, show];
+}
+
+type FeedbackKind = "copied" | "downloaded" | "copy-failed";
+
+export function ValidateResultPanel({
+  result,
+  busy,
+  cliCommand,
+}: {
+  result: ValidateResponse | null;
+  busy: boolean;
+  /** 等价 CLI 命令；提供时才显示「复制 CLI 命令」按钮 */
+  cliCommand?: string;
+}) {
+  const [feedback, showFeedback] = useTransientFeedback<FeedbackKind>();
+
+  const downloadReport = () => {
+    if (!result) return;
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `axp-validate-report-${ts}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showFeedback("downloaded");
+  };
+
+  const copyCli = async () => {
+    if (!cliCommand) return;
+    showFeedback((await copyTextToClipboard(cliCommand)) ? "copied" : "copy-failed");
+  };
+
   if (busy) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -55,12 +136,38 @@ export function ValidateResultPanel({ result, busy }: { result: ValidateResponse
     <div className={cn("rounded-lg border", result.ok ? "border-emerald-500/40" : "border-rose-500/40")}>
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold",
+          "flex flex-wrap items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold",
           result.ok ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400"
         )}
       >
         {result.ok ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : <XCircle className="h-4 w-4" aria-hidden />}
         {result.ok ? "ALL CHECKS PASSED — 校验全绿" : `FAILED — ${result.errors.length} 个错误`}
+        <span className="ml-auto flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2.5 text-[11.5px] text-foreground"
+            onClick={downloadReport}
+          >
+            {feedback === "downloaded" ? (
+              <Check className="h-3 w-3" aria-hidden />
+            ) : (
+              <Download className="h-3 w-3" aria-hidden />
+            )}
+            {feedback === "downloaded" ? "已下载" : "下载校验报告"}
+          </Button>
+          {cliCommand && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2.5 text-[11.5px] text-foreground"
+              onClick={() => void copyCli()}
+            >
+              {feedback === "copied" ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+              {feedback === "copied" ? "已复制" : feedback === "copy-failed" ? "复制失败" : "复制 CLI 命令"}
+            </Button>
+          )}
+        </span>
       </div>
 
       {result.summary && (
@@ -229,7 +336,11 @@ export function ExamplesSection({
 
         {result[current.id] !== undefined || busy === current.id ? (
           <div className="border-t p-4">
-            <ValidateResultPanel result={result[current.id] ?? null} busy={busy === current.id} />
+            <ValidateResultPanel
+              result={result[current.id] ?? null}
+              busy={busy === current.id}
+              cliCommand={`node axp/validator/src/validate.mjs axp/examples/${current.dirName} --json`}
+            />
           </div>
         ) : null}
       </div>

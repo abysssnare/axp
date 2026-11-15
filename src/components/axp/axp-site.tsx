@@ -16,7 +16,7 @@ import {
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { SiteData } from "@/lib/axp-server";
 import { NAV_SECTIONS } from "./data";
@@ -169,7 +169,7 @@ function Hero() {
         <div className="mb-5 flex flex-wrap gap-2">
           <Badge variant="outline" className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] text-emerald-700 dark:text-emerald-400">
             <span className="axp-pulse inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-            spec v1.0.3 · 格式版本 1.0.0
+            spec v1.1.1 · 格式版本 1.0.0
           </Badge>
           <Badge variant="outline" className="px-2.5 py-1 font-mono text-[11px] text-muted-foreground">Android API 26+</Badge>
           <Badge variant="outline" className="px-2.5 py-1 font-mono text-[11px] text-muted-foreground">MIT License</Badge>
@@ -377,7 +377,7 @@ export function AxpSite({ data }: { data: SiteData }) {
               axp
             </span>
             <p className="text-[13px] text-muted-foreground">
-              AXP · Agent eXtension Package — 规范版本 1.0.0（工具链 v1.0.3）· MIT
+              AXP · Agent eXtension Package — 规范版本 1.0.0（文档 v1.1.1）· MIT
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">

@@ -1,7 +1,7 @@
 {
   "schema": "axp-spec-index/1.0",
   "formatVersion": "1.0",
-  "specVersion": "1.1.0",
+  "specVersion": "1.1.1",
   "status": "Stable",
   "updatedAt": "2026-11-15",
   "platform": "Android API 26+",
@@ -68,8 +68,8 @@
     { "name": ".next/standalone/", "content": "文档站点 standalone，必须自带 axp/", "checksum": false }
   ],
   "buildGateStatus": {
-    "nextBuildVerified": false,
-    "ignoreBuildErrors": true,
-    "note": "尚未在具备 Bun 的环境跑通一次真实 next build；见 ROADMAP-ALL-TASKS.md E03 / E07"
+    "nextBuildVerified": true,
+    "ignoreBuildErrors": false,
+    "note": "E03：GitHub Actions web-build job（bun run build + site-check）已在 v1.1.0 基线推送上通过；v1.1.1 起 ignoreBuildErrors=false（tsc --noEmit 零错误）、ESLint 门禁恢复、字体自托管，均随 CI 复跑"
   }
 }

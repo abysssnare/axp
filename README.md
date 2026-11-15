@@ -7,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/Android-API%2026%2B-3ddc84)
 ![Site](https://img.shields.io/badge/site-Next.js%2016-222222)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Docs](https://img.shields.io/badge/docs-v1.1.0-10b981)
+![Docs](https://img.shields.io/badge/docs-v1.1.1-10b981)
 ![Checks](https://img.shields.io/badge/self--check-31%2B43%2B30%2B4-brightgreen)
 
 ---
@@ -100,7 +100,7 @@ node ../scripts/spec-check.mjs
 node ../scripts/site-check.mjs --prebuild
 ```
 
-四套自检数字：**4/4 示例全绿 · 31/31 行为用例 · 43/43 交叉复核 · 30/30 端到端断言**；再加一条 `node scripts/spec-check.mjs`（规范 / schema / 错误码 / 数字 / 断言 ID / 全仓链接自洽）。CI（`.github/workflows/ci.yml`）对每次 push / PR 执行 `axp-selfcheck` / `spec-consistency` / `web-lint` / `web-build` / `docs-links` 五个 job；链接审计已扩到**全仓** Markdown。构建门禁为 v1.0.4 新增，首次真实 `next build` 运行结果仍需在有 Bun 的环境观测（任务 E03）。
+四套自检数字：**4/4 示例全绿 · 31/31 行为用例 · 43/43 交叉复核 · 30/30 端到端断言**；再加一条 `node scripts/spec-check.mjs`（规范 / schema / 错误码 / 数字 / 断言 ID / 全仓链接自洽，212 项）。CI（`.github/workflows/ci.yml`）对每次 push / PR 执行 `axp-selfcheck` / `spec-consistency` / `web-lint` / `web-build` / `docs-links` 五个 job；链接审计已扩到**全仓** Markdown。构建门禁已随 GitHub Actions `web-build` job（`bun run build` + 产物自检）首次验证通过（E03）；v1.1.1 起 `ignoreBuildErrors: false`、ESLint 质量门禁恢复、字体自托管，类型与 lint 均零错误。
 
 ---
 
@@ -143,7 +143,7 @@ node ../scripts/site-check.mjs --prebuild
 ├── public/
 └── axp/                       ← ★ AXP 规范项目（可独立使用，见 axp/README.md）
     ├── README.md              ← 规范项目总览（含文档索引与自检）
-    ├── CHANGELOG.md           ← v1.0.0 → v1.0.3 变更记录
+    ├── CHANGELOG.md           ← v1.0.0 → v1.1.1 变更记录
     ├── CONTRIBUTING.md / LICENSE
     ├── spec/                  ← 13 篇规范章节（01–13）+ index.json 机器索引
     ├── docs/                  ← 13 篇教程与指南（集成 / 插件 / UI / 热加载 / 域 / 部署 / 发布…）
@@ -234,7 +234,8 @@ AXP-0（装载 + tools）→ AXP-1（+ surfaces / knowledge）→ AXP-2（+ agen
 
 ## 变更记录（摘要）
 
-- **v1.1.0**（当前）：补齐**全部基础设施规范**——新增 `spec/10` 基础设施、`11` 一致性认证、`12` 安全威胁模型、`13` 索引与分发，以及 `spec/index.json` 机器可读单一事实源；交付 `scripts/spec-check.mjs`、Release/Dependabot 工作流、`Dockerfile` / `.env.example` / `SECURITY.md`、部署与发布教程、一致性套件模板。优化主规范：补 §8.2、修正 §9 兼容规则自相矛盾、统一 `axp://screen` 域、明确文档版本与格式版本分离。**格式语义不变**，`axp` 仍为 `"1.0"`。
+- **v1.1.1**（当前）：站点工程化与质量门禁提升——`ignoreBuildErrors: false`（tsc 零错误）· `reactStrictMode: true` · ESLint 门禁恢复（unused-vars / unreachable / fallthrough 为 error，hooks 依赖为 warn）· `next/font/google` 改自托管 `geist` 包 · 清理 41 个未用依赖与 36 个未用 shadcn/ui 组件（48→12）· 删除 Prisma 模板与死配置 `tailwind.config.ts` · `bun.lock` workspace 名对齐并重生成 · 文档库 ref 缓存 + 锚点深链 `#library&doc=` · 校验报告下载 / CLI 命令复制。**规范语义不变**，`axp` 仍为 `"1.0"`。
+- **v1.1.0**：补齐**全部基础设施规范**——新增 `spec/10` 基础设施、`11` 一致性认证、`12` 安全威胁模型、`13` 索引与分发，以及 `spec/index.json` 机器可读单一事实源；交付 `scripts/spec-check.mjs`、Release/Dependabot 工作流、`Dockerfile` / `.env.example` / `SECURITY.md`、部署与发布教程、一致性套件模板。优化主规范：补 §8.2、修正 §9 兼容规则自相矛盾、统一 `axp://screen` 域、明确文档版本与格式版本分离。**格式语义不变**，`axp` 仍为 `"1.0"`。
 - **v1.0.4**：完成度审计；修复 standalone 产物不含 `axp/` 数据的部署缺陷（`outputFileTracingIncludes` + `build` 脚本复制）；CI 新增 `web-build` job；新增顶层 `LICENSE`、产物自检脚本、审计报告与任务总账。**规范语义不变**。详见 [`PATCHES.md`](PATCHES.md) 与 [`AUDIT.md`](AUDIT.md)。
 - **v1.0.3**（本仓库基线）：修复参考运行时 Surface 背压时序缺陷——`prime()` 的初始 `full` 快照不再占用推送窗口，装载后首个真实 `delta` 不再被误吞；`smoke.mjs` 30/30 稳定全绿。**规范语义不变**。
 - **v1.0.2**：M3 感知域示例与教程（`examples/04-domains` + `docs/domains-tutorial.md`）；回归加固；自检数字 31/43/30。

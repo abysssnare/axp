@@ -192,3 +192,68 @@ git tag spec-v1.1.0 && git push origin spec-v1.1.0
 | 仅 CI 新增 job | 删除 `ci.yml` 中 `spec-consistency:` 整个块；`docs-links` 的 `root` 改回 `axp` |
 
 > 注意：单独回滚 `index.json` 会同时让 `spec-check.mjs`、`axp-server.ts`、Release workflow 失效，需成组回滚。
+
+---
+
+## 8. v1.1.1 改动清单与回滚（2026-11-15）
+
+> 本轮为**站点工程化与质量门禁**专项：规范正文、schema、校验器、CLI、runtime、示例（`axp/`）零改动；仅 `spec/index.json` 的版本 / 构建门禁字段、`axp/CHANGELOG.md`、`axp/docs/deployment.md` 两处现状描述同步更新。仓库迁至 `abysssnare/axp`。
+
+### 8.1 新增
+
+| 文件 | 说明 |
+|---|---|
+| 依赖 `geist@^1.9.2` | 自托管 Geist Sans / Mono（woff2 随依赖分发），取代 `next/font/google` |
+
+### 8.2 修改
+
+| 文件 | 改动 |
+|---|---|
+| `src/app/layout.tsx` | 字体导入改 `geist/font/sans` + `geist/font/mono`（D19） |
+| `next.config.ts` | `ignoreBuildErrors: false`（E07）· `reactStrictMode: true`（E09） |
+| `eslint.config.mjs` | 恢复质量门禁：全局宽松基线 + `src/**` 严格块 + 沙箱目录 ignores（E08） |
+| `tsconfig.json` | `exclude` 对齐 `.gitignore`（沙箱目录不入类型检查） |
+| `package.json` | 版本 → 1.1.1；移除 41 个未用依赖与 `db:*` 脚本；`build` 脚本不变 |
+| `bun.lock` | 重生成；workspace name `nextjs_tailwind_shadcn_ts` → `axp`（G04/G08） |
+| `src/components/axp/library-section.tsx` | D16 ref 缓存 + D17 `#library&doc=` 深链 |
+| `src/components/axp/examples-section.tsx` | D18 结果面板：下载报告 / 复制 CLI 命令（`cliCommand` prop） |
+| `src/components/axp/playground-section.tsx` | D18 复制当前清单；修复 2 处 `possibly undefined` 类型错误（E07 前置） |
+| `src/components/axp/axp-site.tsx` / `markdown.tsx` / `sections-android.tsx` | 清理未用导入（E08） |
+| `src/hooks/use-toast.ts` | `actionTypes` 改为判别式字面量联合（E08：原写法"只作类型使用"） |
+| `scripts/spec-check.mjs` | md 扫描跳过名单与 `.gitignore` 对齐（沙箱目录误报修复） |
+| `.env.example` | 移除 `DATABASE_URL` 残留说明，补 `NEXT_TELEMETRY_DISABLED` |
+| `axp/spec/index.json` | `specVersion` → 1.1.1；`buildGateStatus`：`nextBuildVerified: true`（CI web-build 留闸）、`ignoreBuildErrors: false` |
+| `axp/CHANGELOG.md` / 顶层 `README.md` / `ROADMAP-ALL-TASKS.md` | v1.1.1 条目与状态 |
+| `axp/docs/deployment.md` | §5 环境变量（无数据库）、§6 字体自托管现状 |
+
+### 8.3 删除
+
+| 文件 | 说明 |
+|---|---|
+| `prisma/schema.prisma` · `src/lib/db.ts` | Prisma 模板残留（G07） |
+| `tailwind.config.ts` | 死配置：v4 CSS-first 且无 `@config` 引用，从未生效 |
+| `src/hooks/use-mobile.ts` | 唯一引用者 `ui/sidebar.tsx` 已删 |
+| 36 个 `src/components/ui/*.tsx` | 未被引用的 shadcn 组件（48→12，G06）：alert / alert-dialog / aspect-ratio / avatar / breadcrumb / calendar / carousel / chart / checkbox / command / context-menu / dialog / drawer / dropdown-menu / form / hover-card / input-otp / menubar / navigation-menu / pagination / popover / progress / radio-group / resizable / scroll-area / select / separator / sidebar / skeleton / slider / sonner / table / tabs / textarea / toggle / toggle-group |
+
+### 8.4 验证
+
+```bash
+bunx tsc --noEmit        # 0 错误
+bun run lint             # 0 错误 0 警告
+bun install --frozen-lockfile   # 通过
+node scripts/spec-check.mjs      # 212/212
+node scripts/site-check.mjs --prebuild   # 30/30
+node axp/validator/test/run-tests.mjs    # 31/31
+python3 axp/validator/test/schema-crosscheck.py  # 43/43
+node axp/runtime/test/smoke.mjs          # 30/30
+# GitHub Actions：CI 五 job（含 web-build 真实 next build）首跑全绿
+```
+
+### 8.5 怎么回滚
+
+| 想撤掉 | 做法 |
+|---|---|
+| 全部 v1.1.1 | `git revert` 对应提交，或 `git checkout <v1.1.0-commit> -- .` |
+| 依赖清理 | 恢复 `package.json` 旧依赖清单后**必须** `bun install` 重生成 `bun.lock`（否则 `--frozen-lockfile` 红）；恢复被删的 `src/components/ui/*` 与 `prisma/` |
+| 质量门禁 | `next.config.ts` 两开关回 true/false；`eslint.config.mjs` 回宽松版 |
+| 字体 | `layout.tsx` 改回 `next/font/google` 并移除 `geist` 依赖 |

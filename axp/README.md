@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/OWNER/axp/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/axp/actions/workflows/ci.yml)
 ![Spec](https://img.shields.io/badge/spec-v1.0.0-blue)
-![Docs](https://img.shields.io/badge/docs-v1.1.0-10b981)
+![Docs](https://img.shields.io/badge/docs-v1.1.1-10b981)
 ![Platform](https://img.shields.io/badge/Android-API%2026%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 

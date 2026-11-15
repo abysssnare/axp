@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bug, FlaskConical, Loader2, RotateCcw, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Bug, Check, Copy, FlaskConical, Loader2, RotateCcw, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "./code-block";
 import { Section } from "./section-primitives";
-import { ValidateResultPanel, type ValidateResponse } from "./examples-section";
+import {
+  copyTextToClipboard,
+  useTransientFeedback,
+  ValidateResultPanel,
+  type ValidateResponse,
+} from "./examples-section";
 
 /* --------------- 破坏性预设：对合法清单做定点突变，演示错误码 --------------- */
 
@@ -57,6 +62,7 @@ const BREAK_PRESETS: { label: string; code: string; desc: string; mutate: Mutato
     desc: "ledger.ocr 改成 destructive 但不开 confirm",
     mutate: (m) => {
       const ocr = (m.tools as Record<string, unknown>[]).find((t) => t.id === "ledger.ocr");
+      if (!ocr) return;
       ocr.sideEffects = "destructive";
       ocr.confirm = false;
     },
@@ -109,6 +115,7 @@ export function PlaygroundSection({
   const [result, setResult] = useState<ValidateResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [manifestCopied, showManifestCopied] = useTransientFeedback<boolean>();
 
   useEffect(() => {
     try {
@@ -138,6 +145,10 @@ export function PlaygroundSection({
       setBusy(false);
     }
   }, [manifest, stub, jsonError]);
+
+  const copyManifest = useCallback(async () => {
+    showManifestCopied(await copyTextToClipboard(manifest));
+  }, [manifest, showManifestCopied]);
 
   const stats = (() => {
     try {
@@ -241,9 +252,18 @@ export function PlaygroundSection({
               {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden /> : <ShieldCheck className="mr-1.5 h-4 w-4" aria-hidden />}
               运行校验
             </Button>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <FlaskConical className="h-3.5 w-3.5" aria-hidden />
-              等价于 <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10.5px]">node validator/src/validate.mjs &lt;你的包&gt; --json</code>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2.5 text-[11.5px]"
+              onClick={() => void copyManifest()}
+            >
+              {manifestCopied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+              {manifestCopied ? "已复制" : "复制当前清单"}
+            </Button>
+            <span className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              <FlaskConical className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              等价于 <code className="break-all rounded bg-muted px-1 py-0.5 font-mono text-[10.5px]">node validator/src/validate.mjs &lt;你的包&gt; --json</code>
             </span>
           </div>
         </div>

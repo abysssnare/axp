@@ -10,6 +10,18 @@ import { Section } from "./section-primitives";
 
 const GROUP_ORDER = ["规范正文 spec/", "教程与指南 docs/", "参考实现", "仓库根文件"];
 
+/** 从 URL hash 解析文档深链（`#library&doc=<path>`），无效或不存在时返回 null */
+function parseLibraryDocHash(): string | null {
+  if (typeof window === "undefined") return null;
+  const m = /^#library&doc=(.+)$/.exec(window.location.hash);
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]) || null;
+  } catch {
+    return null;
+  }
+}
+
 export function LibrarySection({
   docs,
   initialPath,
@@ -28,30 +40,43 @@ export function LibrarySection({
   const [error, setError] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const knownDocs = useRef(new Set(docs.map((d) => d.path)));
+  /** 已加载文档缓存（真实来源），与 content state 同步写入，读取判断只走 ref */
+  const cacheRef = useRef<Record<string, string>>({});
+  /** 进行中的请求集合，防止同一文档并发重复抓取 */
+  const inflightRef = useRef(new Set<string>());
+  /** 首次挂载是否已处理过 URL 深链（只解析一次） */
+  const deepLinkResolvedRef = useRef(false);
 
   const fetchDoc = useCallback(
     async (path: string) => {
-      if (content[path]) return;
+      // 缓存命中（或已在抓取中）直接早退：同一文档只请求一次
+      if (cacheRef.current[path] !== undefined) return;
+      if (inflightRef.current.has(path)) return;
+      inflightRef.current.add(path);
       setLoading(true);
       setError(null);
       try {
         const res = await fetch(`/api/doc?path=${encodeURIComponent(path)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { content: string };
+        cacheRef.current[path] = data.content;
         setContent((c) => ({ ...c, [path]: data.content }));
       } catch (e) {
         setError((e as Error).message);
       } finally {
+        inflightRef.current.delete(path);
         setLoading(false);
       }
     },
-    [content]
+    [] // 空依赖：缓存判断全部走 ref，引用恒定，不再随 content 重建
   );
 
   const openDoc = useCallback(
     (path: string) => {
       if (!knownDocs.current.has(path)) return;
       setActive(path);
+      // 深链：把当前文档同步到 URL hash（replaceState 不触发滚动/不产生历史记录）
+      window.history.replaceState(null, "", `#library&doc=${encodeURIComponent(path)}`);
       void fetchDoc(path);
       requestAnimationFrame(() => {
         document.getElementById("library")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -65,6 +90,20 @@ export function LibrarySection({
   }, [registerOpenDoc, openDoc]);
 
   useEffect(() => {
+    // 首次挂载：解析 #library&doc=<path> 深链，恢复刷新前的文档并定位到文档库
+    if (!deepLinkResolvedRef.current) {
+      deepLinkResolvedRef.current = true;
+      const deep = parseLibraryDocHash();
+      if (deep && knownDocs.current.has(deep)) {
+        document.getElementById("library")?.scrollIntoView({ block: "start" });
+        if (deep !== active) {
+          setActive(deep); // 本 effect 依赖 active，重跑后走下方通用路径完成抓取
+          return;
+        }
+        void fetchDoc(deep);
+        return;
+      }
+    }
     if (active) void fetchDoc(active);
   }, [active, fetchDoc]);
 

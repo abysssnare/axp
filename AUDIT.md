@@ -263,3 +263,33 @@ git push origin main
 5. **D16 / D17 / D18 / D19** —— 站点 hooks 优化、锚点深链、报告导出、字体本地化。
 
 完整任务状态见 [`ROADMAP-ALL-TASKS.md`](ROADMAP-ALL-TASKS.md) 末尾的 v1.1.0 增量节。
+
+---
+
+## 8. v1.1.1 复核（2026-11-15）
+
+> 基线：本仓库 v1.1.0（212 文件）解压重放后完整重验。本轮为**站点工程化专项**：`axp/` 规范与工具链零改动，全部扣分项按 [`ROADMAP-ALL-TASKS.md`](ROADMAP-ALL-TASKS.md) §8.1 执行。仓库已迁至 `abysssnare/axp` 并推送，CI 五 job 首跑全绿。
+
+### 8.1 评级变化
+
+| 维度 | v1.1.0 | v1.1.1 | 依据 |
+|---|---|---|---|
+| CI / 构建 / 部署 | B（E03 未实测） | **A−** | E03 ✅：GitHub Actions `web-build` 真实 `next build` + 产物自检通过；E07/E08/E09 全部落闸（tsc 零错误、lint 零错误零警告、strictMode 实测无 hydration 报错）；扣 A 的原因：`next build` 在本地环境未复跑（由 CI 承担），Android 真机链路仍未动 |
+| 依赖与模板清理 | C+ | **A** | G05–G08 ✅：41 依赖移除（68→21）、36 组件删除（48→12）、Prisma / 死配置 `tailwind.config.ts` / `use-mobile` 残留移除、`bun.lock` 重生成且 workspace 名对齐、`--frozen-lockfile` 通过 |
+| 交互式站点内容 | A− | **A** | D16 ref 缓存（每文档一次请求）· D17 锚点深链 · D18 报告导出与命令复制；演练场 / 文档库 / 示例验证全链路浏览器实测通过 |
+
+### 8.2 证据
+
+- `bunx tsc --noEmit`：0 错误；`bun run lint`：0 错误 0 警告（恢复 unused-vars / unreachable / fallthrough 等 error 级门禁后首次全绿）
+- 自检套件重跑：spec-check 212/212 · site-check 30/30 · validator 31/31 · crosscheck 43/43 · runtime smoke 30/30 · 示例 4/4
+- GitHub Actions：首次推送（v1.1.0 基线）CI `success`——`web-build` 内含 `bun run build` 与 standalone 产物自检
+- 浏览器端到端（agent-browser）：`/` 渲染 · 示例「验证」按钮返回 `ALL CHECKS PASSED` · 演练场 gradient 预设命中 `GRADIENT_EXCEEDS_PRIVILEGE` · 文档库打开 `spec/01-format.md` 全文渲染 · 无 console / hydration 错误
+
+### 8.3 仍然没做完的（不粉饰）
+
+1. **F04 / F05 / F06 / F07**：真机域适配器、Shizuku L3、Android 骨架编译、真实 APK v3 证书链——需要 Android SDK 与真机。
+2. **H14**：`conformance/cases/` 实际用例仍为空。
+3. **F08**：示例 `publisher` 仍是 64 个 `0` 的占位指纹。
+4. **本地未跑 `next build`**：按沙箱约束本机不执行生产构建，构建验证由 CI `web-build` job 承担（已通过）；`buildGateStatus.nextBuildVerified: true` 即以此为据。
+
+完整任务状态见 [`ROADMAP-ALL-TASKS.md`](ROADMAP-ALL-TASKS.md) §v1.1.1 增量节。

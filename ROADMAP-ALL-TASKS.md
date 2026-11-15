@@ -1,8 +1,8 @@
 # AXP · 一次性全部任务总账
 
 > 状态：Stable
-> 适用：`Ultra-Guru/axp` @ `main` · v1.0.4
-> 说明：**这一份列全整个项目的所有任务**，包含已完成的、进行中的、还没开始的；不再分批补。状态以 2026-11-15 审计结果为准。
+> 适用：`abysssnare/axp` @ `main` · v1.1.1
+> 说明：**这一份列全整个项目的所有任务**，包含已完成的、进行中的、还没开始的；不再分批补。状态以 2026-11-15 审计结果为准（v1.1.1 增量见文末）。
 > 图例：✅ 已完成并验证　🟡 部分完成　⬜ 未开始　⚠️ 有风险 / 待实测　🔒 本轮刻意未动
 
 ## 状态速查
@@ -215,3 +215,51 @@
 5. **D16–D18 / H14 / G09 / G10 复跑** → 发布 `spec-v1.1.0` tag
 
 对应路线图：M1 ✅ → M2 ✅ / ⚠️ → M2.5 ✅ → M3 🟡 → M4 🟡 → M5 ✅ → M6 **规范 ✅ / 实现 ⬜** → M7 **认证流程 ✅ / 用例 ⬜**。
+
+---
+
+## v1.1.1 增量与状态更新（2026-11-15）
+
+> 上方基线表统计口径不变；本节记录 v1.1.1 工程化提升轮的完成项。规范正文与工具链（`axp/`）零改动，仅 `spec/index.json` 版本 / 构建门禁状态字段与 `axp/docs/deployment.md` 的两处现状描述同步更新。
+
+### 本轮完成（v1.1.0 遗留任务）
+
+| 任务 ID | 状态 | 说明 |
+|---|---|---|
+| **E03** 一次真实 `next build` | ✅ | GitHub Actions `web-build` job（`bun run build` + `node scripts/site-check.mjs`）在 v1.1.0 基线推送上通过，standalone 产物自包含验证留闸 |
+| **E07** `ignoreBuildErrors` 置 `false` | ✅ | 前置 `bunx tsc --noEmit` 零错误（含修复 `playground-section.tsx` 两处 `possibly undefined`）；`tsconfig exclude` 对齐沙箱目录 |
+| **E08** ESLint 规则恢复 | ✅ | `src/**`：unused-vars / unreachable / redeclare / useless-escape / fallthrough = error；`react-hooks/exhaustive-deps` = warn；`axp/**` 不叠加前端规则；清理 7 处未用导入；`bun run lint` 零错误零警告 |
+| **E09** `reactStrictMode` 置 `true` | ✅ | 开发期实测无 hydration 报错 |
+| **D16** 文档库无效重拉取 | ✅ | `fetchDoc` ref 缓存 + 稳定回调，每篇文档每页仅一次请求 |
+| **D17** 锚点深链 | ✅ | `#library&doc=<path>` 刷新仍定位；不影响章节锚点导航 |
+| **D18** 报告导出 / 命令复制 | ✅ | 「下载校验报告」（JSON）·「复制 CLI 命令」·「复制当前清单」 |
+| **D19** 字体本地化 | ✅ | `next/font/google` → npm 包 `geist`（自托管 woff2，构建期零外网） |
+| **G04** `bun.lock` workspace 名 | ✅ | 对齐 `axp`，`bun install --frozen-lockfile` 通过 |
+| **G05** 清理未使用依赖 | ✅ | 41 个移除（含 Prisma 全套、`z-ai-web-dev-sdk`、`next-auth`、`sharp` 等），`package.json` 依赖 68→21 |
+| **G06** 删除未用 shadcn 组件 | ✅ | 48→12，站点渲染 / lint / tsc 不变 |
+| **G07** 删除 Prisma 模板 | ✅ | `prisma/` + `src/lib/db.ts` + db:* 脚本移除；`.env.example` 同步 |
+| **G08** lockfile 重生成复核 | ✅ | 与 G05–G07 同批完成，frozen 安装通过 |
+
+### 本轮其他改动
+
+- 修复 `scripts/spec-check.mjs` 全仓 md 扫描误入不入库目录（沙箱 `skills/` 等）的问题：目录跳过名单与 `.gitignore` 对齐
+- 删除死配置 `tailwind.config.ts`（v4 CSS-first：`globals.css` 无 `@config` 引用，JS 配置从未生效）
+- 仓库自 `Ultra-Guru/axp` 迁至 `abysssnare/axp`（`git push origin main`，CI 五 job 首跑全绿）
+
+### 仍未完成（优先级不变）
+
+| 任务 ID | 说明 | 阻塞条件 |
+|---|---|---|
+| F04 / F05 / F06 / F07 | 真机域适配器 / Shizuku L3 / Android 骨架编译 / 真实 APK v3 证书链 | 需要 Android SDK 与设备 |
+| F08 / F09 / F10 | 真实指纹 / T2–T7 实现体 / 第三方生态 | 宿主侧 |
+| H14 | `conformance/cases/` 实际用例 | 需第三方宿主实现者参与 |
+| G09 / G10 | `axp/` 独立拆仓流程复跑 / `spec-v1.1.1` tag 与 Release | 发布窗口 |
+
+### 建议执行顺序（v1.1.2 起步）
+
+1. **G10** → 打 `spec-v1.1.1` tag 触发 Release 产物（SHA256SUMS）
+2. **F04 / F05 / F06 / F07** → 真机最后一公里
+3. **H14 / F10** → 一致性用例与第三方生态
+4. **G09** → 规范项目独立开仓复跑
+
+对应路线图不变：M1 ✅ → M2 ✅ / ⚠️ → M2.5 ✅ → M3 🟡 → M4 🟡 → M5 ✅ → M6 **规范 ✅ / 实现 ⬜** → M7 **认证流程 ✅ / 用例 ⬜**。

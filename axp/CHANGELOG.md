@@ -2,6 +2,27 @@
 
 本文件记录规范与工具链的变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.1.1] - 2026-11-15
+
+> **规范语义不变**：`axp` 格式版本仍为 `1.0.0`；本次为站点工程化与质量门禁提升——依赖清理、门禁恢复、UX 增强，规范正文与工具链零改动（仅 `spec/index.json` 的版本与构建门禁状态字段）。
+
+### Fixed · 站点工程化（对应 ROADMAP E07 / E08 / E09 / D19 / G04–G08）
+- **E07**：`next.config.ts` `typescript.ignoreBuildErrors` 置 `false`（前提：`bunx tsc --noEmit` 零错误）；同步修复 `playground-section.tsx` 两处 `possibly undefined` 类型错误
+- **E08**：ESLint 恢复质量门禁：`src/**` 范围内 `no-unused-vars`（error）· `no-unreachable` / `no-redeclare` / `no-useless-escape` / `no-fallthrough`（error）· `react-hooks/exhaustive-deps`（warn）；`axp/**` 由 axp-selfcheck / spec-consistency 单独把关；清理 7 处未用导入
+- **E09**：`reactStrictMode` 置 `true`，开发期暴露并发副作用与 hydration 问题（实测无 hydration 报错）
+- **D19**：`next/font/google` 替换为 npm 包 `geist`（自托管 woff2，构建期零外网字体依赖）
+- **G04–G08**：清理 41 个未使用依赖（含 Prisma 全套、z-ai-web-dev-sdk、next-auth 等）与 36 个未用 shadcn/ui 组件（48→12）；删除死配置 `tailwind.config.ts`（v4 CSS-first 配置为准）与 Prisma 模板（`prisma/` + `src/lib/db.ts` + db:* 脚本）；`bun.lock` 重生成且 workspace name 对齐 `axp`，`bun install --frozen-lockfile` 通过
+
+### Added · 站点 UX（对应 ROADMAP D16 / D17 / D18）
+- **D16**：文档库 `fetchDoc` 改为 ref 缓存 + 稳定回调，每篇文档每页只请求一次，切回已读文档零请求
+- **D17**：文档库锚点深链 `#library&doc=<path>`，刷新后仍定位同一文档；不影响既有章节锚点导航
+- **D18**：校验结果面板新增「下载校验报告」（JSON 全量）与「复制 CLI 命令」；演练场新增「复制当前清单」
+
+### Verified
+- `bunx tsc --noEmit` 零错误；`bun run lint` 零错误零警告（恢复门禁后首次全绿）
+- `bun install --frozen-lockfile` 通过；`spec-check.mjs` / `site-check.mjs --prebuild` 全绿；自检数字 4/31/43/30 不变
+- GitHub Actions `web-build` job（`bun run build` + 产物自检）在 v1.1.0 基线推送上已通过，E03 的「一次真实 next build」首次留闸
+
 ## [1.1.0] - 2026-11-15
 
 > **规范语义不变**：`axp` 格式版本仍为 `1.0.0`（清单字段 `axp: "1.0"`），本次为文档版本提升——新增章节、编辑性勘误与基础设施规范落地，已有插件无需修改 `axp.json`。

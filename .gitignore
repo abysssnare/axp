@@ -51,3 +51,4 @@ coverage/
 /prompt
 /tool-results/
 local-*
+agent-ctx/
