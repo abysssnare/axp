@@ -1,0 +1,12 @@
+{
+  "name": "@axp/reference-runtime",
+  "version": "1.0.0",
+  "description": "Executable reference host for AXP v1.0 (M2, AXP-3 level)",
+  "type": "module",
+  "main": "src/host.mjs",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "smoke": "node test/smoke.mjs"
+  }
+}

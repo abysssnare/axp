@@ -1,0 +1,120 @@
+{
+  "axp": "1.0",
+  "id": "com.example.browser",
+  "name": {
+    "zh": "浏览器自动化",
+    "en": "Browser Automation"
+  },
+  "version": "1.0.0",
+  "description": "打开网页、读屏、点击，无界面",
+  "minHost": "0.1.0",
+  "minAndroid": 26,
+  "abis": [],
+  "tools": [
+    {
+      "id": "browser.open",
+      "description": "打开一个 URL（返回结构化 Intent 指令）",
+      "input": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "impl": {
+        "js": "tools/open.js"
+      },
+      "sideEffects": "device",
+      "confirm": true,
+      "cost": "fast"
+    },
+    {
+      "id": "screen.tap",
+      "description": "点击屏幕坐标（L2 无障碍 / L3 shell 自动切换）",
+      "input": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      },
+      "impl": {
+        "js": "tools/tap.js"
+      },
+      "gradient": {
+        "L2": {
+          "impl": {
+            "js": "tools/tap-a11y.js"
+          }
+        },
+        "L3": {
+          "impl": {
+            "js": "tools/tap-shell.js"
+          }
+        }
+      },
+      "sideEffects": "device",
+      "confirm": true,
+      "cost": "fast"
+    },
+    {
+      "id": "screen.text",
+      "description": "读取当前屏幕文本",
+      "input": {
+        "type": "object"
+      },
+      "impl": {
+        "js": "tools/text.js"
+      },
+      "sideEffects": "read",
+      "cost": "fast"
+    }
+  ],
+  "capabilities": {
+    "privilege": "L3",
+    "requests": [
+      "accessibility.read",
+      "accessibility.gestures",
+      "intent.send"
+    ],
+    "dangerous": [
+      "accessibility.gestures"
+    ],
+    "runtimeServices": [
+      "storage"
+    ]
+  },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  },
+  "surfaces": [
+    {
+      "uri": "axp://screen",
+      "description": "当前屏幕节点树",
+      "views": [
+        "tree",
+        "text"
+      ],
+      "anchor": "node",
+      "watchable": true,
+      "auth": "L2",
+      "impl": {
+        "js": "surfaces/screen.js"
+      }
+    }
+  ]
+}

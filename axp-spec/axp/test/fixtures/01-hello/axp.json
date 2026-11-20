@@ -1,0 +1,34 @@
+{
+  "axp": "1.0",
+  "id": "com.example.hello",
+  "name": { "zh": "你好插件", "en": "Hello" },
+  "version": "1.0.0",
+  "description": "最小 AXP 插件：原样返回输入文本",
+  "minHost": "0.1.0",
+  "minAndroid": 26,
+  "abis": [],
+  "entry": { "js": "main.js", "engine": "quickjs" },
+  "tools": [
+    {
+      "id": "demo.echo",
+      "description": "原样返回输入文本",
+      "input": {
+        "type": "object",
+        "properties": { "text": { "type": "string" } },
+        "required": ["text"]
+      },
+      "output": { "type": "object" },
+      "impl": { "js": "tools/hello.js" },
+      "sideEffects": "none",
+      "cost": "fast"
+    }
+  ],
+  "capabilities": { "privilege": "L0", "requests": [] },
+  "instances": { "multi": false },
+  "runtime": { "memoryMB": 32, "cpuPct": 5, "allowDynamicCode": false },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  }
+}

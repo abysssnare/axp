@@ -45,7 +45,9 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills",
+    // AXP — Agent eXtension Package 交付树：质量门禁由 .github/workflows/ci.yml 的 axp-* job 负责
+    "axp-spec/**", "axp-examples/**", "axp-android-host/**"]
 }];
 
 export default eslintConfig;

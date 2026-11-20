@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axp-spec.dev/schema/1.0/install-intent.json",
+  "title": "AXP session-install Intent v1.0",
+  "type": "object",
+  "required": ["intent", "id", "version", "source", "sha256", "publisher", "requestedPrivilege", "requests", "createdAt"],
+  "additionalProperties": false,
+  "properties": {
+    "intent": { "const": "axp.session-install/1.0" },
+    "id": { "type": "string" },
+    "version": { "type": "string" },
+    "source": { "type": "string" },
+    "sha256": { "type": "string" },
+    "publisher": { "type": "string" },
+    "requestedPrivilege": { "enum": ["L0","L1","L2","L3","L4","L5"] },
+    "requests": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string" }
+  }
+}

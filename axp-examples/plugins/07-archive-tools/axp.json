@@ -1,0 +1,70 @@
+{
+  "axp": "1.0",
+  "id": "com.example.archive",
+  "name": {
+    "zh": "压缩解压",
+    "en": "Archive"
+  },
+  "version": "1.0.0",
+  "description": "打包与解包，无界面",
+  "minHost": "0.1.0",
+  "minAndroid": 26,
+  "abis": [],
+  "tools": [
+    {
+      "id": "archive.pack",
+      "description": "把多个文件打包成一个可传输字符串",
+      "input": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ]
+      },
+      "impl": {
+        "js": "tools/pack.js"
+      },
+      "sideEffects": "read",
+      "cost": "slow"
+    },
+    {
+      "id": "archive.unpack",
+      "description": "解包并列出条目",
+      "input": {
+        "type": "object",
+        "properties": {
+          "blob": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "blob"
+        ]
+      },
+      "impl": {
+        "js": "tools/unpack.js"
+      },
+      "sideEffects": "read",
+      "cost": "fast"
+    }
+  ],
+  "capabilities": {
+    "privilege": "L1",
+    "requests": [
+      "fs.read:shared",
+      "fs.write:shared"
+    ],
+    "runtimeServices": [
+      "storage"
+    ]
+  },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  }
+}

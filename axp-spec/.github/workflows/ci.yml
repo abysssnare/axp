@@ -1,0 +1,55 @@
+name: AXP spec CI
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+jobs:
+  selfcheck:
+    name: 规范 / 工具链 / 一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Schema 可解析
+        run: node -e "JSON.parse(require('fs').readFileSync('axp/spec/02-manifest.schema.json','utf8')); console.log('schema OK')"
+      - name: 全部夹具清单校验
+        run: |
+          cd axp
+          for d in test/fixtures/*/; do node validator/src/validate.mjs "$d" || exit 1; done
+      - name: 行为用例 31
+        run: node axp/validator/test/run-tests.mjs
+      - name: 双引擎交叉复核 47
+        run: |
+          pip install jsonschema==4.26.0
+          python3 axp/validator/test/schema-crosscheck.py
+      - name: 参考运行时 30
+        run: node axp/runtime/test/smoke.mjs
+      - name: 分发/安装/Agent/UI 一致性 C01–C26
+        run: node axp/tools/conformance.mjs --json
+      - name: 规范静态一致性 S01–S08
+        run: node axp/tools/spec-lint.mjs --json
+      - name: pack 烟雾测试
+        run: |
+          cd axp
+          node cli/bin/axp.mjs pack test/fixtures/01-hello -o /tmp/hello.axp
+          unzip -l /tmp/hello.axp | grep axp.json
+      - name: 构建前数据完整性
+        run: node scripts/site-check.mjs --prebuild
+  docs-links:
+    name: 全仓 Markdown 链接
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          node - <<'NODE'
+          const fs=require('fs'),path=require('path');
+          const files=[];(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){
+            const p=path.join(d,e.name); if(e.isDirectory())w(p); else if(p.endsWith('.md'))files.push(p);}})('.');
+          let bad=[];
+          for(const f of files){const md=fs.readFileSync(f,'utf8');
+            for(const m of md.matchAll(/\]\(([^)#\s]+)\)/g)){
+              let h=m[1]; if(/^https?:|^mailto:/.test(h))continue;
+              if(!fs.existsSync(path.resolve(path.dirname(f),h)))bad.push(f+': '+h);}}
+          if(bad.length){console.error(bad.join('\n'));process.exit(1);}
+          console.log(files.length+' markdown files, 0 broken links');
+          NODE

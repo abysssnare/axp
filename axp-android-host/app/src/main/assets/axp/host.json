@@ -1,0 +1,54 @@
+{
+  "axpHost": "1.0",
+  "appId": "dev.axp.host",
+  "hostLevel": "AXP-2",
+  "hostVersion": "1.0.0",
+  "minAndroid": 26,
+  "supportedAbis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "implKinds": [
+    "js"
+  ],
+  "uiForms": [
+    "panel"
+  ],
+  "panelForms": [
+    "form-A-legacy",
+    "form-B-nested"
+  ],
+  "channels": [
+    "session-install",
+    "preinstall"
+  ],
+  "domains": [
+    "intent"
+  ],
+  "services": {
+    "storage": true,
+    "ui.push": true,
+    "sampling": false,
+    "elicitation": false,
+    "audit.read": true
+  },
+  "signaturePolicy": "dev",
+  "ctx": [
+    "storage",
+    "surface",
+    "audit",
+    "ui.push"
+  ],
+  "conformance": {
+    "suite": "axp-conformance/1.0",
+    "passed": 26,
+    "failed": 0,
+    "notImplemented": [
+      "hotReload",
+      "apk-v3-strict",
+      "shizuku-l3",
+      "a11y-l2"
+    ]
+  }
+}

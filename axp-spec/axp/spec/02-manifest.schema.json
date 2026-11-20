@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axp-spec.dev/schema/1.0/manifest.json",
+  "title": "AXP Manifest v1.0",
+  "description": "axp.json — AXP (Agent eXtension Package) 清单的唯一事实源。本 schema 定义声明层，不定义宿主运行时。",
+  "type": "object",
+  "required": ["axp", "id", "name", "version", "minAndroid", "abis", "capabilities", "distribution"],
+  "additionalProperties": false,
+  "properties": {
+    "axp": { "const": "1.0" },
+    "id": { "type": "string", "minLength": 3 },
+    "name": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string" }
+    },
+    "version": { "type": "string", "minLength": 5 },
+    "description": { "type": "string" },
+    "minHost": { "type": "string" },
+    "minAndroid": { "type": "integer", "minimum": 26 },
+    "abis": {
+      "type": "array",
+      "items": { "enum": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"] }
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "range"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "range": { "type": "string" }
+        }
+      }
+    },
+    "entry": { "$ref": "#/$defs/entry" },
+    "tools": { "type": "array", "items": { "$ref": "#/$defs/tool" } },
+    "surfaces": { "type": "array", "items": { "$ref": "#/$defs/surface" } },
+    "knowledge": { "type": "array", "items": { "$ref": "#/$defs/knowledge" } },
+    "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } },
+    "ui": { "$ref": "#/$defs/ui" },
+    "hotReload": { "$ref": "#/$defs/hotReload" },
+    "capabilities": { "$ref": "#/$defs/capabilities" },
+    "instances": { "$ref": "#/$defs/instances" },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "distribution": { "$ref": "#/$defs/distribution" }
+  },
+  "$defs": {
+    "impl": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "js": { "type": "string" },
+        "kotlin": { "type": "string" },
+        "native": { "type": "string" },
+        "wasm": { "type": "string" },
+        "bin": { "type": "string" },
+        "url": { "type": "string" },
+        "proc": {
+          "type": "object",
+          "required": ["cmd"],
+          "additionalProperties": false,
+          "properties": {
+            "cmd": { "type": "string" },
+            "args": { "type": "array", "items": { "type": "string" } },
+            "cwd": { "type": "string" },
+            "env": { "type": "object", "additionalProperties": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["js", "engine"],
+      "additionalProperties": false,
+      "properties": {
+        "js": { "type": "string" },
+        "engine": { "enum": ["quickjs", "hermes", "dex", "wasm", "bin"] }
+      }
+    },
+    "tool": {
+      "type": "object",
+      "required": ["id", "description", "sideEffects"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "input": { "type": "object" },
+        "output": { "type": "object" },
+        "impl": { "$ref": "#/$defs/impl" },
+        "gradient": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^L[0-5]$": {
+              "type": "object",
+              "required": ["impl"],
+              "additionalProperties": false,
+              "properties": { "impl": { "$ref": "#/$defs/impl" } }
+            }
+          }
+        },
+        "sideEffects": { "enum": ["none", "read", "device", "destructive"] },
+        "confirm": { "type": "boolean" },
+        "cost": { "enum": ["fast", "slow"] }
+      },
+      "anyOf": [
+        { "required": ["impl"] },
+        { "required": ["gradient"] }
+      ]
+    },
+    "surface": {
+      "type": "object",
+      "required": ["uri", "views", "anchor", "auth"],
+      "additionalProperties": false,
+      "properties": {
+        "uri": { "type": "string" },
+        "description": { "type": "string" },
+        "views": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "anchor": { "enum": ["node", "line", "offset", "range", "uri"] },
+        "watchable": { "type": "boolean" },
+        "auth": { "enum": ["L0", "L1", "L2", "L3", "L4", "L5"] },
+        "impl": { "$ref": "#/$defs/impl" }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["on"],
+      "additionalProperties": false,
+      "properties": {
+        "on": { "type": "string" },
+        "filter": { "type": "string" }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "required": ["id", "kind", "entry"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["skill", "prompt", "command", "rules"] },
+        "entry": { "type": "string" },
+        "progressive": { "type": "boolean" },
+        "arguments": { "type": "array", "items": { "type": "object" } },
+        "triggers": { "type": "array", "items": { "$ref": "#/$defs/trigger" } },
+        "allowedTools": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["id", "prompt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "prompt": { "type": "string" },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "knowledge": { "type": "array", "items": { "type": "string" } },
+        "model": { "type": "string" },
+        "maxTurns": { "type": "integer", "minimum": 1 },
+        "privilege": { "enum": ["L0", "L1", "L2", "L3", "L4", "L5"] }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["on", "run"],
+      "additionalProperties": false,
+      "properties": {
+        "on": { "type": "string" },
+        "filter": { "type": "string" },
+        "when": { "type": "object" },
+        "run": { "$ref": "#/$defs/impl" },
+        "privilege": { "enum": ["L0", "L1", "L2", "L3", "L4", "L5"] }
+      }
+    },
+    "uiSlot": {
+      "type": "object",
+      "required": ["kind", "entry"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["dsl", "web", "native"] },
+        "entry": { "type": "string" }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "panel": { "$ref": "#/$defs/uiSlot" },
+        "widget": { "$ref": "#/$defs/uiSlot" },
+        "web": { "$ref": "#/$defs/uiSlot" },
+        "activity": { "$ref": "#/$defs/uiSlot" },
+        "inject": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["surface", "label", "run"],
+            "additionalProperties": false,
+            "properties": {
+              "surface": { "type": "string" },
+              "label": { "type": "string" },
+              "run": { "type": "string" }
+            }
+          }
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "onLoad": { "type": "string" },
+            "onReload": { "type": "string" },
+            "onUnload": { "type": "string" }
+          }
+        },
+        "bind": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "tool"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "tool": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "hotReload": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "unit": { "enum": ["package", "component"] },
+        "targets": { "type": "array", "items": { "type": "string" } },
+        "strategy": { "enum": ["immediate", "graceful", "next-session"] },
+        "signature": { "enum": ["on-install", "on-every-load"] },
+        "sources": {
+          "type": "array",
+          "items": { "enum": ["package", "trusted-channel", "preinstall"] }
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "migrate": { "type": "string" },
+            "preserve": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keep": { "type": "integer", "minimum": 0 },
+            "onError": { "type": "boolean" }
+          }
+        },
+        "uiRebuild": { "enum": ["recompose", "recreate-activity", "restart-host"] },
+        "classloader": { "enum": ["isolated", "shared"] }
+      },
+      "if": { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+      "then": {
+        "required": ["signature", "sources", "classloader", "uiRebuild"],
+        "properties": {
+          "signature": { "const": "on-every-load" },
+          "classloader": { "const": "isolated" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["privilege", "requests"],
+      "additionalProperties": false,
+      "properties": {
+        "privilege": { "enum": ["L0", "L1", "L2", "L3", "L4", "L5"] },
+        "requests": { "type": "array", "items": { "type": "string" } },
+        "dangerous": { "type": "array", "items": { "type": "string" } },
+        "runtimeServices": {
+          "type": "array",
+          "items": { "enum": ["sampling", "elicitation", "ui.push", "audit.read", "storage"] }
+        }
+      }
+    },
+    "instances": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "multi": { "type": "boolean" },
+        "max": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memoryMB": { "type": "integer", "minimum": 1 },
+        "cpuPct": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "allowDynamicCode": { "type": "boolean" }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "required": ["channel", "publisher", "signatureScheme"],
+      "additionalProperties": false,
+      "properties": {
+        "channel": { "enum": ["session-install", "trusted-channel", "preinstall"] },
+        "publisher": { "type": "string" },
+        "signatureScheme": { "enum": ["apk-v3"] }
+      }
+    }
+  }
+}

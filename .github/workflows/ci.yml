@@ -26,3 +26,123 @@ jobs:
 
       - name: ESLint
         run: bun run lint
+
+  axp-spec:
+    name: AXP Package · 规范 / 工具链 / 一致性
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Schema 可解析
+        run: node -e "JSON.parse(require('fs').readFileSync('axp-spec/axp/spec/02-manifest.schema.json','utf8')); console.log('schema OK')"
+
+      - name: 全部夹具清单校验
+        run: |
+          cd axp-spec/axp
+          for d in test/fixtures/*/; do node validator/src/validate.mjs "$d" || exit 1; done
+
+      - name: 行为用例 31
+        run: node axp-spec/axp/validator/test/run-tests.mjs
+
+      - name: 双引擎交叉复核 47
+        run: |
+          pip install jsonschema==4.26.0
+          python3 axp-spec/axp/validator/test/schema-crosscheck.py
+
+      - name: 参考运行时 30
+        run: node axp-spec/axp/runtime/test/smoke.mjs
+
+      - name: 分发/安装/Agent/UI 一致性 C01–C26
+        run: node axp-spec/axp/tools/conformance.mjs --json
+
+      - name: 规范静态一致性 S01–S09
+        run: node axp-spec/axp/tools/spec-lint.mjs --json
+
+      - name: pack 烟雾测试（临时副本，避免 seal 落盘改写夹具）
+        run: |
+          cp -r axp-spec/axp/test/fixtures/01-hello /tmp/pack-src
+          node axp-spec/axp/cli/bin/axp.mjs pack /tmp/pack-src -o /tmp/hello.axp
+          unzip -l /tmp/hello.axp | grep axp.json
+
+      - name: 构建前数据完整性
+        run: node axp-spec/scripts/site-check.mjs --prebuild
+
+  axp-examples:
+    name: AXP Package · 示例仓 8 插件
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 示例清单校验
+        run: node axp-examples/tools/verify.mjs
+
+      - name: 发布索引重建（8 插件全收录）
+        run: |
+          cd axp-examples
+          node ../axp-spec/axp/cli/bin/axp.mjs index plugins/* -o /tmp/index.json
+          python3 - <<'PY'
+          import json
+          idx = json.load(open('/tmp/index.json'))
+          assert idx.get('axpIndex') == '1.0', 'axpIndex version mismatch'
+          ids = sorted(p['id'] for p in idx['plugins'])
+          assert len(ids) == 8 and len(set(ids)) == 8, f'expected 8 unique plugins, got {ids}'
+          print('index rebuild OK:', ', '.join(ids))
+          PY
+
+  axp-android-host:
+    name: AXP Package · Android 宿主 core（javac --release 8 + Nashorn）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 11（内置 Nashorn，支持 --release 8）
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Java core 编译 + C01–C26
+        run: |
+          java axp-android-host/conformance/ConformanceRunner.java \
+            "$PWD/axp-spec/axp/test/fixtures" "$PWD/axp-android-host"
+
+  docs-links:
+    name: 全仓 Markdown 链接
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 链接审计
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),path=require('path');
+          // docs/axp-package/AXP-*.md 为单文件合订快照，其内部交叉引用指向原多文件布局，按原样保留不入审计
+          const SKIP = /^docs\/axp-package\/AXP-/;
+          const files=[];(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){
+            const p=path.join(d,e.name); if(e.isDirectory()){ if(e.name==='.git'||e.name==='node_modules')continue; w(p);} else if(p.endsWith('.md')&&!SKIP.test(p))files.push(p);}})('.');
+          let bad=[];
+          for(const f of files){const md=fs.readFileSync(f,'utf8');
+            for(const m of md.matchAll(/\]\(([^)#\s]+)\)/g)){
+              let h=m[1]; if(/^https?:|^mailto:/.test(h))continue;
+              if(!fs.existsSync(path.resolve(path.dirname(f),h)))bad.push(f+': '+h);}}
+          if(bad.length){console.error(bad.join('\n'));process.exit(1);}
+          console.log(files.length+' markdown files audited, 0 broken links');
+          NODE

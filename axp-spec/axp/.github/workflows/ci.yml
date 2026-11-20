@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Manifest schema is parseable JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('spec/02-manifest.schema.json','utf8')); console.log('schema OK')"
+      - name: Validate all example plugins
+        run: |
+          for d in examples/*/; do
+            echo "==> $d"
+            node validator/src/validate.mjs "$d"
+          done
+      - name: Pack examples
+        run: |
+          for d in examples/*/; do
+            n=$(basename "$d")
+            node cli/bin/axp.mjs pack "$d" -o "/tmp/$n.axp"
+            unzip -l "/tmp/$n.axp" | grep -q 'axp.json'
+          done
+      - name: Pack / new / inspect smoke test
+        run: |
+          node cli/bin/axp.mjs inspect examples/03-hot-reload
+          node cli/bin/axp.mjs new com.example.smoke -o /tmp/axp-smoke
+          node validator/src/validate.mjs /tmp/axp-smoke
+
+  cross-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install standard JSON Schema implementation
+        run: pip install jsonschema==4.26.0
+      - name: Freeze validator behaviour (zero-dependency Node tests)
+        run: node validator/test/run-tests.mjs
+      - name: Cross-check schema vs standard jsonschema (draft 2020-12)
+        run: python3 validator/test/schema-crosscheck.py
+      - name: End-to-end reference runtime smoke test
+        run: node runtime/test/smoke.mjs
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: All local Markdown links resolve
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'), path=require('path');
+          let checked=0, bad=[];
+          function scan(dir){
+            for(const e of fs.readdirSync(dir,{withFileTypes:true})){
+              const p=path.join(dir,e.name);
+              if(e.isDirectory()){ if(e.name==='node_modules'||e.name==='.git') continue; scan(p); }
+              else if(e.name.endsWith('.md')){
+                for(const m of fs.readFileSync(p,'utf8').matchAll(/\]\(([^)#]+)\)/g)){
+                  const l=m[1];
+                  if(l.startsWith('http')||l.startsWith('mailto:')) continue;
+                  checked++;
+                  if(!fs.existsSync(path.resolve(path.dirname(p),l))) bad.push(`${p} -> ${l}`);
+                }
+              }
+            }
+          }
+          scan('.');
+          console.log(`checked ${checked} local links`);
+          if(bad.length){ console.error('broken links:\n'+bad.join('\n')); process.exit(1); }
+          NODE
+      - name: Reference implementations present
+        run: |
+          for f in runtime/src/host.mjs runtime/src/hotreload.mjs \
+                   runtime/test/smoke.mjs runtime/README.md \
+                   reference-host/README.md reference-host/android/README.md \
+                   reference-host/android/settings.gradle.kts \
+                   reference-host/android/host/src/main/kotlin/dev/axp/host/AxpHost.kt \
+                   reference-host/android/host/src/main/kotlin/dev/axp/host/IsolatedLoader.kt \
+                   reference-host/android/host/src/main/kotlin/dev/axp/host/HotReloadAgent.kt; do
+            test -f "$f" || { echo "missing $f"; exit 1; }
+          done
+          echo "runtime + android skeleton OK"
