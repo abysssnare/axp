@@ -7,7 +7,7 @@
 
 | 仓库 | 内容 |
 |---|---|
-| **axp-spec（本仓）** | 规范正文 01–21 + 6 个 Schema、零依赖校验器、CLI（含真实 `install`）、Node 参考运行时、一致性套件、内部测试夹具 |
+| **axp-spec（本仓）** | 规范正文 01–21 + 6 个 Schema、零依赖校验器（Node 侧）、CLI（含真实 `install`）、Node 参考运行时、一致性套件、内部测试夹具；双引擎交叉复核 `schema-crosscheck.py` 需 `pip install jsonschema` |
 | `axp-examples/` | 8 个官方示例插件（含记忆系统 / PDF-Excel / 压缩解压 / 浏览器自动化）、`index.json`、发布脚本 |
 | `axp-android-host/` | 可编译安装的 Android 宿主 App（纯 Java、零第三方依赖），插件列表 / 安装 / 点开 UI / Agent 选择 |
 
@@ -17,10 +17,10 @@
 ## 快速开始
 
 ```bash
-# 全部自检（零依赖，Node 20+ / Python 3）
+# 全部自检（Node 20+ / Python 3；schema-crosscheck.py 需先 pip install jsonschema）
 cd axp
 node validator/test/run-tests.mjs                 # 31/31
-python3 validator/test/schema-crosscheck.py       # 43/43
+python3 validator/test/schema-crosscheck.py       # 47/47
 node runtime/test/smoke.mjs                      # 30/30
 node tools/conformance.mjs --json                # C01–C26 端到端
 node ../scripts/site-check.mjs --prebuild        # 夹具完整性

@@ -139,7 +139,14 @@ node cli/bin/axp.mjs pack plugins/panel -o panel.axp
 ```kotlin
 val panel = UiParser.parse(m.ui.panel.entry)
 val handle = host.mountUi(m, panel)
-m.ui.bind.forEach { host.surface(it.from).collect { d -> handle.update(it.to, d) } }
+// 每个 Surface 收集跑在面板生命周期私有的协程里：
+// 前面的流慢/挂起不会拖住后续 bind 的订阅，onLoad 也不必等它们收完
+val scope = panelLifecycleScope()          // 面板关闭时自动取消全部收集协程
+m.ui.bind.forEach { b ->
+    scope.launch {
+        host.surface(b.from).collect { d -> handle.update(b.to, d) }
+    }
+}
 m.ui.lifecycle?.onLoad?.let { host.runScript(it, panel.state) }
 ```
 

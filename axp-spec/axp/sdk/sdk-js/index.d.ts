@@ -115,7 +115,7 @@ export interface Capabilities {
   privilege: Privilege;
   requests: string[];
   dangerous?: string[];
-  runtimeServices?: Array<'sampling' | 'elicitation' | 'ui.push' | 'audit.read'>;
+  runtimeServices?: Array<'sampling' | 'elicitation' | 'storage' | 'ui.push' | 'audit.read'>;
 }
 
 /** Context passed to impl.js / ui.lifecycle callbacks (host-defined shape). */

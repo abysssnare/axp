@@ -69,7 +69,7 @@
 
 规则：
 
-1. `name` = `<pluginId>.<toolId>`，`MUST` 全局唯一；选中后宿主 `MUST` 映射回原插件与工具。
+1. `name` = `<pluginId>.<toolId>`，`MUST` 全局唯一。两者都允许含 `.`，因此宿主 `MUST NOT` 用「反向拆分 name」做映射，而是按实际注册的 `(pluginId, toolId)` 对构建 name → 对 的唯一索引；当两个不同的对投影出相同 `name` 时，宿主 `MUST` 拒绝注册后者、写审计并在工具集中标注 `available:false`（原因 `NAME_COLLISION`）——保证任何被接受的 `name` 都能唯一映射回原插件与工具。
 2. `available:false` 的工具（gradient 无可用实现 / 权限未授予）`SHOULD` 仍列出但标注原因，避免 Agent 反复试错。
 3. `cost` 与 `description` 是选择依据；`sideEffects:"device"|"destructive"` 或 `confirm:true` 的工具 `MUST` 在调用前经用户确认。
 4. **选择策略由宿主决定**（规则匹配 / 模型 function-calling / 用户手动），格式只约束「可见什么、能调什么、调到哪一级」——这与 `01-format.md` §0.1「不是运行时」不冲突：这里定义的是**清单投影**，不是调度引擎。

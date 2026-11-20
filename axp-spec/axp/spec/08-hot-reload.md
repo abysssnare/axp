@@ -53,7 +53,7 @@
 
 - 每一代替换创建新实例，旧实例在无强引用后由 GC 回收
 - `MUST NOT` 把插件类注入宿主 `PathClassLoader`（无法卸载）
-- `classloader: "shared"` 仅允许用于纯 `js` / `.md` / `panel.json` 实现体
+- 启用热加载的插件 `MUST` 声明 `classloader: "isolated"`（校验器按 `HOT_CLASSLOADER` 拒绝其余取值）；`"shared"` 的旧宽松规则仅保留给未启用热加载的包，且仅限纯 `js` / `.md` / `panel.json` 实现体
 
 ### 3.2 资源与 UI
 

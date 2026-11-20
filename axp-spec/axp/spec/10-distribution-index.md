@@ -59,7 +59,7 @@ MUST / SHOULD / MAY 按 RFC 2119。
 
 规则：
 
-1. `plugins[].id` `MUST` 唯一；同一 `id` 可有多个 `version`，宿主 `SHOULD` 选满足 `minHost`/`minAndroid` 的最高版本。
+1. `plugins[]` 的 `(id, version)` 对 `MUST` 唯一；同一 `id` 允许多个 `version` 共存（供兼容性选择），宿主 `SHOULD` 选满足 `minHost`/`minAndroid` 的最高版本。
 2. `sha256` `MUST` 对应 `source` 指向文件的真实摘要；安装前 `MUST` 复算。
 3. `publisher` `MUST` 与包内 `axp.json` 的 `distribution.publisher` 一致；不一致 → `INSTALL_PUBLISHER_MISMATCH`。
 4. `capabilities` 是**索引期快照**，安装时 `MUST` 以包内清单为准重新校验，不得用索引字段替代。

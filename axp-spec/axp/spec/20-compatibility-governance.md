@@ -37,7 +37,7 @@
 1. `minAndroid <= Build.VERSION.SDK_INT` → 否则 `INSTALL_MIN_ANDROID`；
 2. `abis` 与设备 ABI 有交集，或为空（纯 JS）→ 否则 `INSTALL_ABI_UNSUPPORTED`；
 3. `minHost <= hostVersion`（按 semver）→ 否则 `INSTALL_MIN_HOST`；
-4. 插件声明的等级（由组件推断，§4）`<= hostLevel` → 否则 `INSTALL_HOST_LEVEL`；
+4. 插件声明的等级（由组件推断，§4）`<= hostLevel` → 否则按**可降级协商**处理：超出等级的功能若能安全停用（如工具在 `gradient` 中无可用层 → 标 `available:false`；`hotReload` 超出 → 按不可用处理并通过协商机制告知 Agent），`MUST` 接受整包、把这些功能标 `available:false` 并写审计 `INSTALL_HOST_LEVEL_NEGOTIATED`；仅当存在无法降级的组件（如纯 L3 实现且无低层回退）才 `INSTALL_HOST_LEVEL` 整包拒绝。`minAndroid` / `abis` / `minHost` 不参与降级（不满足即拒）；`hostLevel` 按本条协商；
 5. `requires[]` 闭包全部已启用且满足 range → 否则 `INSTALL_DEPENDENCY_MISSING`。
 
 宿主 `MUST NOT` 用「索引里的 capabilities 快照」替代包内清单做以上判定（10 §2 规则 4）。

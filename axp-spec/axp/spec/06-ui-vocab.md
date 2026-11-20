@@ -90,13 +90,13 @@ ${props:<key>}          // 读取宿主注入属性
 示例：
 
 ```jsonc
-{ "id": "tree", "type": "Text", "props": { "text": "${surface:axp://vision/screen.text}" } }
+{ "id": "tree", "type": "Text", "props": { "text": "${surface:axp://screen.text}" } }
 ```
 
 等价的清单声明：
 
 ```jsonc
-"ui": { "bind": [ { "from": "axp://vision/screen", "to": "ui.panel.tree" } ] }
+"ui": { "bind": [ { "from": "axp://screen", "to": "ui.panel.tree" } ] }
 ```
 
 `to` 路径格式：`ui.panel.<node-id>[.<prop>]`，`MUST` 能在 `panel.json` 中解析到节点。

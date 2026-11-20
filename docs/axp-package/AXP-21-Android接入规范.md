@@ -9,7 +9,7 @@
 
 > 状态：Stable · 适用 AXP v1.x · Android API 26+ · 最后更新 2026-11-20
 > 规范性层级：`13-glossary-conventions.md` §1 第 4 层。**不新增 `axp.json` 字段、不改 `01-format.md` §0–§12**。
-> 配套：[`21-host-capabilities.schema.json`](21-host-capabilities.schema.json) · [`docs/android-integration-cookbook.md`](../docs/android-integration-cookbook.md)。
+> 配套：[`21-host-capabilities.schema.json`](../../axp-spec/axp/spec/21-host-capabilities.schema.json) · [`docs/android-integration-cookbook.md`](../../axp-spec/axp/docs/android-integration-cookbook.md)。
 >
 > **本文件回答的问题**：一个**已经存在的 Android App**，要引入 AXP、能装 `.axp`、能点开插件 UI、能被 Agent 选用，到底要改哪几处、按什么顺序改、怎么证明改对了。
 > 它不是「从零写一个宿主」的实现说明（那是 `axp-android-host/` 参考实现），而是**第三方 App 的接入契约**——M7「引入第三方宿主」的规范性入口。

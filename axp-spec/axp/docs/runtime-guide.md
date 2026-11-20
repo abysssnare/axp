@@ -106,7 +106,7 @@ class MyBridge : HostBridge {
 ## 验证
 
 - [ ] `node runtime/test/smoke.mjs` 输出 `ALL 30 ASSERTIONS PASSED`
-- [ ] `python3 validator/test/schema-crosscheck.py` 输出 `43 passed, 0 failed`
+- [ ] `python3 validator/test/schema-crosscheck.py` 输出 `47 passed, 0 failed`
 - [ ] 修改 `test/fixtures/03-hot-reload/axp.json` 的 `hotReload.signature` 为 `on-install` → `run-tests.mjs` 捕获 `HOT_SIGNATURE_POLICY`
 - [ ] 把 `AxpHost({ privileges: ['L0','L1','L2'] })` 跑一遍 → `gradient` 日志显示 `layer: L2`
 - [ ] 在 Android Studio 里打开 `reference-host/android`，`:host:testDebugUnitTest` 通过（骨架级纯逻辑测试）

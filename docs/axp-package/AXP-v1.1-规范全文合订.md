@@ -1834,7 +1834,7 @@ MUST / SHOULD / MAY 按 RFC 2119。
 
 规则：
 
-1. `plugins[].id` `MUST` 唯一；同一 `id` 可有多个 `version`，宿主 `SHOULD` 选满足 `minHost`/`minAndroid` 的最高版本。
+1. `plugins[]` 的 `(id, version)` 对 `MUST` 唯一；同一 `id` 允许多个 `version` 共存（供兼容性选择），宿主 `SHOULD` 选满足 `minHost`/`minAndroid` 的最高版本。
 2. `sha256` `MUST` 对应 `source` 指向文件的真实摘要；安装前 `MUST` 复算。
 3. `publisher` `MUST` 与包内 `axp.json` 的 `distribution.publisher` 一致；不一致 → `INSTALL_PUBLISHER_MISMATCH`。
 4. `capabilities` 是**索引期快照**，安装时 `MUST` 以包内清单为准重新校验，不得用索引字段替代。
@@ -2056,7 +2056,7 @@ Android 宿主 `MUST`：① 通过 SAF（`ACTION_OPEN_DOCUMENT`）或 inbox 扫�
 
 规则：
 
-1. `name` = `<pluginId>.<toolId>`，`MUST` 全局唯一；选中后宿主 `MUST` 映射回原插件与工具。
+1. `name` = `<pluginId>.<toolId>`，`MUST` 全局唯一。两者都允许含 `.`，因此宿主 `MUST NOT` 用「反向拆分 name」做映射，而是按实际注册的 `(pluginId, toolId)` 对构建 name → 对 的唯一索引；碰撞时拒绝注册后者、写审计并标注 `available:false`（`NAME_COLLISION`）——保证任何被接受的 `name` 都能唯一映射回原插件与工具。
 2. `available:false` 的工具（gradient 无可用实现 / 权限未授予）`SHOULD` 仍列出但标注原因，避免 Agent 反复试错。
 3. `cost` 与 `description` 是选择依据；`sideEffects:"device"|"destructive"` 或 `confirm:true` 的工具 `MUST` 在调用前经用户确认。
 4. **选择策略由宿主决定**（规则匹配 / 模型 function-calling / 用户手动），格式只约束「可见什么、能调什么、调到哪一级」——这与 `01-format.md` §0.1「不是运行时」不冲突：这里定义的是**清单投影**，不是调度引擎。
@@ -2543,7 +2543,8 @@ v1.0 的官方示例使用 **扁平 id 引用**形态；v1.1 的示例仓 `05-me
       "props": { "text": "${surface:axp://x/com.example.panel/vision/screen.text}" } },
     { "id": "row", "type": "Row", "props": { "spacing": 8 },
       "children": ["tapBtn", "refreshBtn"] },
-    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } }
+    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } },
+    { "id": "refreshBtn", "type": "Button", "props": { "label": "刷新", "action": "ui.panel.refresh" } }
   ]
 }
 ```
@@ -3176,7 +3177,7 @@ ctx.surface.publish(uri, delta)  ← 插件主动产生增量（16 §3）
 1. `minAndroid <= Build.VERSION.SDK_INT` → 否则 `INSTALL_MIN_ANDROID`；
 2. `abis` 与设备 ABI 有交集，或为空（纯 JS）→ 否则 `INSTALL_ABI_UNSUPPORTED`；
 3. `minHost <= hostVersion`（按 semver）→ 否则 `INSTALL_MIN_HOST`；
-4. 插件声明的等级（由组件推断，§4）`<= hostLevel` → 否则 `INSTALL_HOST_LEVEL`；
+4. 插件声明的等级（由组件推断，§4）`<= hostLevel` → 否则按**可降级协商**处理：超等级功能能安全停用的（gradient 无可用层 → `available:false`；`hotReload` 超出 → 按不可用处理并告知 Agent）`MUST` 接受整包并写审计 `INSTALL_HOST_LEVEL_NEGOTIATED`；仅无法降级的组件才 `INSTALL_HOST_LEVEL` 整包拒绝。`minAndroid` / `abis` / `minHost` 不参与降级（不满足即拒）；`hostLevel` 按本条协商；
 5. `requires[]` 闭包全部已启用且满足 range → 否则 `INSTALL_DEPENDENCY_MISSING`。
 
 宿主 `MUST NOT` 用「索引里的 capabilities 快照」替代包内清单做以上判定（10 §2 规则 4）。
@@ -5089,7 +5090,6 @@ plugins/hello/
   "version": "1.0.0",
   "minAndroid": 26,
   "abis": [],
-  "entry": { "js": "main.js", "engine": "quickjs" },
   "tools": [
     {
       "id": "demo.echo",

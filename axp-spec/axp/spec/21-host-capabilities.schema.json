@@ -4,49 +4,221 @@
   "title": "AXP Host Capability Declaration v1.0",
   "description": "Capability-state declaration shipped with an Android host App. NOT the runtime registry (see 16-registry.schema.json) and NOT a plugin manifest.",
   "type": "object",
-  "required": ["axpHost","appId","hostLevel","hostVersion","minAndroid","supportedAbis","implKinds","uiForms","channels","domains","services","signaturePolicy","ctx","conformance"],
+  "required": [
+    "axpHost",
+    "appId",
+    "hostLevel",
+    "hostVersion",
+    "minAndroid",
+    "supportedAbis",
+    "implKinds",
+    "uiForms",
+    "channels",
+    "domains",
+    "services",
+    "signaturePolicy",
+    "ctx",
+    "conformance"
+  ],
   "additionalProperties": false,
   "properties": {
-    "axpHost": { "const": "1.0" },
-    "appId": { "type": "string", "minLength": 3 },
-    "hostLevel": { "enum": ["AXP-0","AXP-1","AXP-2","AXP-3"] },
-    "hostVersion": { "type": "string" },
-    "minAndroid": { "type": "integer", "minimum": 26 },
-    "supportedAbis": { "type": "array", "items": { "enum": ["arm64-v8a","armeabi-v7a","x86","x86_64"] } },
-    "implKinds": { "type": "array", "items": { "enum": ["native","kotlin","wasm","bin","js","proc","url"] } },
-    "uiForms": { "type": "array", "items": { "enum": ["panel","widget","web","activity","inject"] } },
-    "panelForms": { "type": "array", "items": { "enum": ["form-A-legacy","form-B-nested"] } },
-    "channels": { "type": "array", "items": { "enum": ["session-install","trusted-channel","preinstall"] } },
-    "domains": { "type": "array", "items": { "enum": ["fs","screen","app","notification","intent","sensor","clipboard","telephony","logcat","pm","media","net","sysprop"] } },
-    "services": {
-      "type": "object",
-      "required": ["storage","ui.push","sampling","elicitation","audit.read"],
-      "additionalProperties": false,
-      "properties": {
-        "storage": { "type": "boolean" }, "ui.push": { "type": "boolean" },
-        "sampling": { "type": "boolean" }, "elicitation": { "type": "boolean" },
-        "audit.read": { "type": "boolean" }
+    "axpHost": {
+      "const": "1.0"
+    },
+    "appId": {
+      "type": "string",
+      "minLength": 3
+    },
+    "hostLevel": {
+      "enum": [
+        "AXP-0",
+        "AXP-1",
+        "AXP-2",
+        "AXP-3"
+      ]
+    },
+    "hostVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][\\w.]+)?$",
+      "description": "宿主版本，语义化 semver（非空、major.minor.patch）"
+    },
+    "minAndroid": {
+      "type": "integer",
+      "minimum": 26
+    },
+    "supportedAbis": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "arm64-v8a",
+          "armeabi-v7a",
+          "x86",
+          "x86_64"
+        ]
       }
     },
-    "signaturePolicy": { "enum": ["dev","strict-v3"] },
-    "ctx": { "type": "array", "items": { "type": "string" } },
-    "installIntentEndpoint": { "type": "string" },
-    "conformance": {
+    "implKinds": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "native",
+          "kotlin",
+          "wasm",
+          "bin",
+          "js",
+          "proc",
+          "url"
+        ]
+      }
+    },
+    "uiForms": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "panel",
+          "widget",
+          "web",
+          "activity",
+          "inject"
+        ]
+      }
+    },
+    "panelForms": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "form-A-legacy",
+          "form-B-nested"
+        ]
+      }
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "session-install",
+          "trusted-channel",
+          "preinstall"
+        ]
+      }
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "fs",
+          "screen",
+          "app",
+          "notification",
+          "intent",
+          "sensor",
+          "clipboard",
+          "telephony",
+          "logcat",
+          "pm",
+          "media",
+          "net",
+          "sysprop"
+        ]
+      }
+    },
+    "services": {
       "type": "object",
-      "required": ["suite","passed","failed","notImplemented"],
+      "required": [
+        "storage",
+        "ui.push",
+        "sampling",
+        "elicitation",
+        "audit.read"
+      ],
       "additionalProperties": false,
       "properties": {
-        "suite": { "type": "string" },
-        "passed": { "type": "integer", "minimum": 0 },
-        "failed": { "type": "integer", "minimum": 0 },
-        "notImplemented": { "type": "array", "items": { "type": "string" } }
+        "storage": {
+          "type": "boolean"
+        },
+        "ui.push": {
+          "type": "boolean"
+        },
+        "sampling": {
+          "type": "boolean"
+        },
+        "elicitation": {
+          "type": "boolean"
+        },
+        "audit.read": {
+          "type": "boolean"
+        }
+      }
+    },
+    "signaturePolicy": {
+      "enum": [
+        "dev",
+        "strict-v3"
+      ]
+    },
+    "ctx": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "installIntentEndpoint": {
+      "type": "string"
+    },
+    "conformance": {
+      "type": "object",
+      "required": [
+        "suite",
+        "passed",
+        "failed",
+        "notImplemented"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "suite": {
+          "type": "string"
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notImplemented": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "uiForms": { "contains": { "const": "panel" } } }, "required": ["uiForms"] },
-      "then": { "required": ["panelForms"], "properties": { "panelForms": { "minItems": 1 } } }
+      "if": {
+        "properties": {
+          "uiForms": {
+            "contains": {
+              "const": "panel"
+            }
+          }
+        },
+        "required": [
+          "uiForms"
+        ]
+      },
+      "then": {
+        "required": [
+          "panelForms"
+        ],
+        "properties": {
+          "panelForms": {
+            "minItems": 1
+          }
+        }
+      }
     }
   ]
 }

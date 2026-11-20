@@ -23,7 +23,8 @@ v1.0 的官方示例使用 **扁平 id 引用**形态；v1.1 的示例仓 `05-me
       "props": { "text": "${surface:axp://x/com.example.panel/vision/screen.text}" } },
     { "id": "row", "type": "Row", "props": { "spacing": 8 },
       "children": ["tapBtn", "refreshBtn"] },
-    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } }
+    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } },
+    { "id": "refreshBtn", "type": "Button", "props": { "label": "刷新", "action": "ui.panel.refresh" } }
   ]
 }
 ```
@@ -57,7 +58,7 @@ v1.0 的官方示例使用 **扁平 id 引用**形态；v1.1 的示例仓 `05-me
 | `Column` | 纵向容器 | `spacing` / `padding` | ✅ |
 | `Row` | 横向容器 | `spacing` | ✅ |
 | `Card` | 卡片容器 | `elevation` / `title` | ✅ |
-| `Text` | 文本 | `text` / `style`(`title|mono|body`) / `maxLines` / `color` | ❌ |
+| `Text` | 文本 | `text` / `style`（`title`、`mono`、`body` 三选一） / `maxLines` / `color` | ❌ |
 | `Input` | 输入框 | `label` / `value` / `hint` / `multiline` | ❌ |
 | `Button` | 按钮 | `label` / `action`（指向 `ui.actions[].id`） / `enabled` | ❌ |
 | `List` | 列表 | `items` / `divider` / `emptyText` | ❌ |
@@ -98,10 +99,15 @@ ui.bind[].to   = ui.panel.<nodeId> (MUST 存在于 panel.json)
 `lifecycle` 三个回调都是**包内 JS 文件**，签名：
 
 ```js
-export function onLoad(state, ctx) { /* 返回新 state */ }
-export function onReload(oldState, newState, ctx) { /* 返回迁移后的 state */ }
-export function onUnload(state, ctx) { /* 清理 */ }
+export function onLoad(ctx) { /* 返回新 state（缺省沿用入参 ctx.state） */ }
+export function onReload(ctx) { /* 返回迁移后的 state（缺省沿用 ctx.newState） */ }
+export function onUnload(ctx) { /* 清理 */ }
 ```
+
+三个回调都收**单个上下文对象**（与参考运行时 `runScript` 的派发约定一致）：
+`ctx.state` / `ctx.oldState` / `ctx.newState` / `ctx.changed` / `ctx.log` 等字段由宿主按
+08 §2 的替换顺序填充（`onReload` 的 `ctx` 同时携带 `oldState` 与 `newState`）。
+收 `(state, ctx)` 双参的旧回调 `SHOULD` 由宿主按位置兼容适配。
 
 宿主 `MUST` 在插件界面打开 / 热替换完成 / 界面关闭时分别调用；
 只写 `run(args)` 的旧插件 `MUST` 仍能装载（16 §3 向后兼容）。

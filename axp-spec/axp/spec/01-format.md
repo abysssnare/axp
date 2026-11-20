@@ -235,7 +235,7 @@ com.example.demo.axp/            # 目录形态（开发）；同名 .axp zip（
 
 ```jsonc
 {
-  "uri": "axp://vision/screen",
+  "uri": "axp://x/com.example.autopay/vision/screen",
   "description": "当前屏幕的无障碍节点树",
   "views": ["tree", "text", "image"],
   "anchor": "node",             // node | line | offset | range | uri
@@ -324,7 +324,7 @@ com.example.demo.axp/            # 目录形态（开发）；同名 .axp zip（
     "onUnload": "ui/onUnload.js"
   },
   "bind": [
-    { "from": "axp://vision/screen", "to": "ui.panel.tree" }
+    { "from": "axp://x/com.example.autopay/vision/screen", "to": "ui.panel.tree" }
   ],
   "actions": [
     { "id": "ui.panel.tap", "tool": "screen.tap" }

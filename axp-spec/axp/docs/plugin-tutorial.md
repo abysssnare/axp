@@ -35,7 +35,6 @@ plugins/hello/
   "version": "1.0.0",
   "minAndroid": 26,
   "abis": [],
-  "entry": { "js": "main.js", "engine": "quickjs" },
   "tools": [
     {
       "id": "demo.echo",
@@ -56,13 +55,15 @@ plugins/hello/
   "runtime": { "memoryMB": 32, "cpuPct": 5, "allowDynamicCode": false },
   "distribution": {
     "channel": "session-install",
-    "publisher": "sha256:REPLACE_WITH_YOUR_CERT_FINGERPRINT",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     "signatureScheme": "apk-v3"
   }
 }
 ```
 
 > `L0` = 纯计算沙箱，不需要任何 Android 权限。这是最安全的起点。
+> `publisher` 校验要求 `sha256:` + 64 位十六进制；上面 64 个 `0` 是**开发占位**，
+> 正式分发前 MUST 换成你证书的真实指纹（步骤 5 的发布顺序里先填再 pack）。
 
 ## 步骤 3 · 写实现体
 
@@ -92,10 +93,19 @@ node validator/src/validate.mjs plugins/hello
 ## 步骤 5 · 打包
 
 ```bash
+# 发布顺序（缺一不可颠倒）：
+# 1) 先把证书指纹填进源清单 —— 校验器要求 publisher 是 sha256:<64 位十六进制>
+#    （开发期可暂用 64 个 0 占位，但分发前 MUST 换成真实指纹）
+node -e "const f='plugins/hello/axp.json',m=require('./'+f);m.distribution.publisher='sha256:'+process.env.FINGERPRINT;require('fs').writeFileSync(f,JSON.stringify(m,null,2))"
+# 2) 再校验 + 打包（此时清单里的指纹已就位）
+node validator/src/validate.mjs plugins/hello
 node cli/bin/axp.mjs pack plugins/hello -o hello.axp
+# 3) 最后对产物做 APK v3 签名
+apksigner sign --v3-signing-enabled true --ks release.jks hello.axp
 ```
 
-`.axp` 就是 zip。发布前用 APK v3 签名，并把证书指纹填回 `distribution.publisher`。
+`.axp` 就是 zip。注意：指纹是**先填进 `axp.json` 再 pack**（打包内容包含清单），
+签名是对 pack 出的 `.axp` 产物做的——pack 之后改指纹会让包内清单与签名不一致。
 
 ## 步骤 6 · 安装并调用
 

@@ -24,6 +24,8 @@
 | `net` | `axp://net/<iface>` | `value text` | `uri` | ✅ | L1 | `ConnectivityManager`；`net.stat` |
 | `sysprop` | `axp://sysprop/<key>` | `value` | `uri` | ❌ | L3 | `SystemProperties`（Shizuku）；`sysprop.read` |
 
+**L1 敏感读取的确认口径**：L1 域（`fs` / `notification` / `clipboard` / `telephony` 等）的授权由 Android 运行时权限**系统弹窗**完成（见 04 §1 的「用户确认 = 系统弹窗」列）。在此之上，涉及**敏感内容读取**的请求 —— `telephony.sms.read`、`clipboard.read`、以及读取消息正文的 `notification.listen` —— 属于用户感知强烈的隐私数据，宿主 `SHOULD` 在工具调用时再弹一次确认（与 18 §4 的确认矩阵一致：L1 敏感读取建议确认，L2+ 一律必须单独确认）。
+
 **适配器义务**：宿主 `MUST` 内置 13 个域的**注册与寻址**；`MUST` 对未实现的域返回结构化 `DOMAIN_UNAVAILABLE`，`MUST NOT` 静默返回空数据让插件误判。
 `axp-android-host` 如实声明：`intent` 已真实可用、`screen` 走 `AccessibilityBridge` 接口（未接服务时返回空树）、其余适配器待补（见其 README）。
 

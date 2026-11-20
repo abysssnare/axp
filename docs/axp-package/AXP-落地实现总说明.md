@@ -81,7 +81,7 @@ Java 侧同样跑通：`C09 surface delta -> ui.bind`、`C17 面板节点 + 绑�
 - `ui/`：`MainActivity`（插件列表 + 启用状态 + 权限层 + 点开入口）、`InstallActivity`（SAF 选 `.axp` → 宿主重新执行十步，不信任 CLI 结论）、`PluginActivity`（把 `panel.json` 渲染成原生 View，`ui.bind` 随 Surface delta 自动刷新，`ui.actions` 回填工具）；
 - `conformance/`：`ConformanceRunner.java` 用 `jdk.compiler` 编译 core 并用 Nashorn 执行同一份插件 JS。
 
-**真机效果**：打包 `05-memory-system` → 装进 App → 点开看到「记忆与储存」面板 → 输入点「记住」 → 列表自动刷新 → 退出重进数据还在。这正是你举的例子。
+**真机预期行为**（尚未在设备上验证，见下方环境边界）：打包 `05-memory-system` → 装进 App → 点开看到「记忆与储存」面板 → 输入点「记住」 → 列表自动刷新 → 退出重进数据还在。这正是你举的例子。
 
 **必须说明的边界（不是掩饰，是环境事实）**：本沙盒只有 JRE 11，**没有 Android SDK、没有 Gradle、Maven/Google/Gradle 下载全部 403**，因此**无法在这里编译出 APK、也无法在真机/模拟器上跑一遍**。我做的是：把 core 抽成纯 Java 并在这里编译 + 跑通全量用例；App 层写成零第三方依赖的标准 Gradle 工程，你在本机 Android Studio 打开即可构建。这是当前环境能给出的最强证据，不虚标「已出 APK」。
 

@@ -62,8 +62,11 @@
 | 索引 `sha256` | 复算比对 | 复算比对 + TLS + 签名索引 |
 | `network-unsigned` | 校验器已拒 | 校验器已拒 |
 | 权限 L2+ / `dangerous` | 输出确认清单 | `MUST` 逐项弹窗确认，未确认不注册 |
+| L1 敏感读取（`telephony.sms.read` / `clipboard.read` / 消息正文 `notification.listen`） | `SHOULD` 调用时确认（系统权限弹窗已在安装期完成） | `SHOULD` 调用时确认（口径见 17 §1） |
 
 `axp-android-host` 的 `SignaturePolicy.dev()` 已实现左侧；`strict()` 需接 `apksig`，README 如实列为未实现，**不虚标 AXP-3**。
+
+**默认策略为生产（fail-closed）**：宿主 `MUST` 以生产策略为出厂默认 —— 未显式选择 `dev`（`--dev` / `SignaturePolicy.dev()`）时，缺失 `AXP-SIG.json`、`signature` 为 `dev:` 标记或验签不通过的包一律拒绝（`INSTALL_SIGNATURE_FAILED`）。`dev` 只能由用户显式开启，`MUST NOT` 作为默认值；参考宿主在未接入 `apksig` 前，生产路径同样拒绝而非放行。
 
 ## 5. 审计要求
 

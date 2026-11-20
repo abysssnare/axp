@@ -214,10 +214,11 @@ await check('S07', async () => {
 await check('S08', () => {
   const bad = [];
   for (const f of walk(SPEC, '.md')) {
-    for (const m of rd(f).matchAll(/\]\(([^)#\s]+)\)/g)) {
-      const h = m[1];
-      if (/^https?:|^mailto:/.test(h)) continue;
-      if (!fs.existsSync(path.resolve(path.dirname(f), h))) bad.push(path.basename(f) + ': ' + h);
+    // 链接可能带 #fragment：先剥掉 fragment 再检查文件部分是否存在
+    for (const m of rd(f).matchAll(/\]\(([^)\s]+)\)/g)) {
+      const h = m[1].split('#')[0];
+      if (!h || /^https?:|^mailto:/.test(h)) continue;
+      if (!fs.existsSync(path.resolve(path.dirname(f), h))) bad.push(path.basename(f) + ': ' + m[1]);
     }
   }
   assert(!bad.length, bad.join('; '));

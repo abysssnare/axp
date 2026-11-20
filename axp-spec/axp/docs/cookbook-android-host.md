@@ -63,11 +63,12 @@ JS 实现体由 `WebView.evaluateJavascript` 执行（Android 自带 JS 引擎�
 ## 6. 自检
 
 ```bash
-# 规范侧（Node，任何机器）
-cd axp-spec/axp && node tools/conformance.mjs --json
+# 规范侧（Node，任何机器）—— 在仓库根执行
+node axp-spec/axp/tools/conformance.mjs --json
 
-# Android core 侧（纯 JVM，不需要 Android SDK）
-cd axp-android-host && java conformance/ConformanceRunner.java
+# Android core 侧（纯 JVM，不需要 Android SDK）—— 同样在仓库根执行
+# （axp-android-host 就在仓库根下；前一步 cd 进 axp-spec/axp 的话先回来）
+java axp-android-host/conformance/ConformanceRunner.java
 ```
 
 两个套件跑的是 `spec/12` 同一张用例表；全绿才能声明对应等级。

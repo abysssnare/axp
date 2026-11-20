@@ -223,7 +223,8 @@ fun applyHotReplace(newBundle: AxpBundle) {
         "HOT_PRIVILEGE_ESCALATION"
     }
     require(nm.componentIds().all { it in m.componentIds() }) { "HOT_NEW_COMPONENT" }
-    require(cfg.targets.any { t -> nm.changedComponents(m).all { c -> c.matches(t) } }) {
+    // 量词方向：每个变更组件都要命中至少一个 target（而不是每个 target 覆盖全部变更）
+    require(nm.changedComponents(m).all { c -> cfg.targets.any { t -> c.matches(t) } }) {
         "HOT_TARGET_MISMATCH"
     }
 
@@ -239,7 +240,8 @@ fun applyHotReplace(newBundle: AxpBundle) {
         RECREATE_ACTIVITY  -> activity.recreate(state)
         RESTART_HOST       -> scheduleRestart(state)
     }
-    m.ui?.lifecycle?.onReload?.let { runScript(it, mapOf("oldState" to panel.state, "newState" to state)) }
+    // 切换后读新清单 nm 的 lifecycle（m 已是旧代）
+    nm.ui?.lifecycle?.onReload?.let { runScript(it, mapOf("oldState" to panel.state, "newState" to state)) }
 
     // 5 失败回滚（回滚同样验签）
 }.onFailure { e ->

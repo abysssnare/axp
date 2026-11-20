@@ -35,6 +35,8 @@ val audit    = File(axpDir, "audit.jsonl")     // append-only
 ## 3. 收 `.axp`（H1）
 
 ```kotlin
+// 与 axp-android-host 同款入口：AxpHost.install(File, dev) 自带解包与 10 §3 十步
+val host = AxpApplication.HOST          // 或自建：AxpHost(File(filesDir, "axp"), WebViewJsRunner(this))
 val pick = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
     uri ?: return@registerForActivityResult
     val tmp = File(cacheDir, "incoming.axp")
@@ -42,14 +44,19 @@ val pick = registerForActivityResult(ActivityResultContracts.OpenDocument()) { u
         tmp.outputStream().use { input.copyTo(it) }
     }
     lifecycleScope.launch(Dispatchers.IO) {
-        val r = AxpHost.installFromZip(tmp, axpDir, SignaturePolicy.dev())
+        val r = host.install(tmp, /* dev = */ true)   // .axp 文件直接给 install：内部解包
         withContext(Dispatchers.Main) { showResult(r) }   // 只刷新 UI，不在这跑 impl
     }
 }
 pick.launch(arrayOf("application/zip", "*/*"))
 ```
 
-`installFromZip` 内部 `MUST` 跑完 `10 §3` 十步：解包（拒 `..`/绝对路径）→ 复算 digest → publisher 绑定 → 清单严格校验 → abis → 依赖 → **逐项确认 L2+/dangerous** → 写 `registry.json`。任一步失败不写注册表。
+`AxpHost.install`（`dev.axp.host.core.AxpHost`，`app/src/main/java/.../core/AxpHost.java`）内部 `MUST` 跑完 `10 §3` 十步：解包（拒 `..`/绝对路径）→ 复算 digest → publisher 绑定 → 清单严格校验 → abis → 依赖 → **逐项确认 L2+/dangerous** → 写 `registry.json`。任一步失败不写注册表。
+
+> **`dev = true` 只用于开发与 CI**：它跳过 AXP-SIG.json 的生产验签。对来源不明的
+> `.axp`（聊天工具传来的、网盘下载的）`MUST NOT` 开 dev；本参考宿主的 strict 路径
+> 需接 `apksig` 后才可放开 —— 未接入前生产路径一律 `INSTALL_SIGNATURE_FAILED`
+> 拒绝（见 `axp-android-host/README.md` 与 18 §4）。
 
 ## 4. 执行一个工具（H3，独立线程）
 
@@ -103,7 +110,7 @@ node axp/cli/bin/axp.mjs publish /tmp/hello -o index.json
 3. 调 `com.example.hello.demo.echo` 返回回显；
 4. 装第二个不同 `id` 的插件，读不到第一个的 `storage`；
 5. `kill` 进程再打开 → 插件还在（从 `registry.json` 重建）；
-6. 跑 `node axp/tools/spec-lint.mjs --json` → S09 校验你的 `host.json` 通过。
+6. 跑 `node axp/tools/spec-lint.mjs --json` → S09 校验的是**参考宿主自带的** `axp-android-host/app/src/main/assets/axp/host.json`；你自己的 App 需另建 host.json 并用同一 schema 单独校验（21 §5.2）。
 
 过了这 6 条，就是合格的 **I0 / AXP-0** 接入。之后按 `21 §12` 第 5–8 步逐级加 surfaces、UI、gradient，宿主 APK **不需要因为加插件再发版**。
 
