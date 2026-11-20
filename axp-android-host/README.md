@@ -49,6 +49,10 @@ java conformance/ConformanceRunner.java \
   "$(pwd)/../axp-spec/axp/test/fixtures" "$(pwd)"
 ```
 
+> 环境要求：该命令依赖 JDK 内置的 **Nashorn** 引擎，需要 **JDK 11–14**；
+> JDK 15+ 已移除 Nashorn，JVM 一致性自检不可用（`nashorn unavailable`）。
+> 这与 Android App 无关 —— 真机上的 JS 由系统 WebView 执行（`WebViewJsRunner`）。
+
 `ConformanceRunner` 用 `jdk.compiler` 编译 `core/*.java` + `ConformanceMain.java`（`--release 8`），
 再用 Nashorn 执行同一份插件 `impl.js`，跑 C01–C26。输出 `passed/failed` JSON，失败退出码非 0。
 Node 侧对应 `node ../axp-spec/axp/tools/conformance.mjs --json`。

@@ -18,12 +18,12 @@ import java.util.Map;
  */
 public final class ConformanceMain {
     static final class NashornRunner implements JsRunner {
-        public String run(String source, String argsJson, HostContext ctx) throws Exception {
+        @Override public String run(String source, String argsJson, HostContext ctx, String entry) throws Exception {
             ScriptEngine e = new ScriptEngineManager().getEngineByName("nashorn");
             if (e == null) throw new IllegalStateException("nashorn unavailable");
             Bindings b = new SimpleBindings();
             b.put("ctx", ctx);
-            Object v = e.eval(JsRunner.wrapper(source, argsJson), b);
+            Object v = e.eval(JsRunner.wrapper(source, argsJson, entry), b);
             return v == null ? "null" : String.valueOf(v);
         }
     }
@@ -169,7 +169,7 @@ public final class ConformanceMain {
         });
         c("C24", "AXP-3", () -> ok(AxpHost.digestDir(new File(fix,"01-hello")).length() == 64, "sha256 hex"));
         c("C25", "AXP-3", () -> ok(AxpHost.satisfies("1.0.0", ">=1.0.0 <2.0.0"), "AND range"));
-        c("C26", "AXP-3", () -> ok(h.uninstall("com.example.nostore").get("ok") != null, "uninstall"));
+        c("C26", "AXP-3", () -> ok(Boolean.TRUE.equals(h.uninstall("com.example.nostore").get("ok")), "uninstall result must be ok:true"));
 
         int passed = 0;
         StringBuilder out = new StringBuilder("{\n  \"suite\": \"axp-conformance/1.0\",\n  \"runtime\": \"jvm-core\",\n  \"hostLevel\": \"AXP-2\",\n  \"cases\": [\n");

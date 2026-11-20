@@ -19,7 +19,7 @@ public final class AxpApplication extends Application {
         super.onCreate();
         File root = new File(getFilesDir(), "axp");
         root.mkdirs();
-        JS = new WebViewJsRunner(this);          // WebView 必须在主线程创建
+        JS = new WebViewJsRunner(this);          // WebView 固定在 runner 自有的 js 线程上创建与使用
         PLATFORM = new AndroidPlatform(this);
         HOST = new AxpHost(root, JS);
     }

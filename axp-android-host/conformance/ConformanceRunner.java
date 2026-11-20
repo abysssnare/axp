@@ -17,7 +17,13 @@ import java.util.List;
  */
 public class ConformanceRunner {
     public static void main(String[] args) throws Exception {
-        File root = new File(args.length > 1 ? args[1] : ".").getAbsoluteFile();
+        // root 默认值：显式参数 > 当前目录 > 仓库根的 axp-android-host/
+        // （从仓库根直接 `java axp-android-host/conformance/ConformanceRunner.java` 也能跑）
+        File root;
+        if (args.length > 1) root = new File(args[1]).getAbsoluteFile();
+        else if (new File("app/src/main/java/dev/axp/host/core").exists()) root = new File(".").getAbsoluteFile();
+        else if (new File("axp-android-host/app/src/main/java/dev/axp/host/core").exists()) root = new File("axp-android-host").getAbsoluteFile();
+        else root = new File(".").getAbsoluteFile();
         File core = new File(root, "app/src/main/java/dev/axp/host/core");
         File conf = new File(root, "conformance/src/dev/axp/host/core");
         File out = new File(root, "conformance/out");

@@ -41,6 +41,8 @@ public final class MainActivity extends Activity {
         list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, rows));
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
+                // 空态提示行不在 items 里：越界位置直接忽略，避免误读选中插件
+                if (pos < 0 || pos >= items.size()) return;
                 Map<String, Object> e = items.get(pos);
                 if (Json.bool(e.get("ui"), false)) {
                     Intent i = new Intent(MainActivity.this, PluginActivity.class);

@@ -122,6 +122,17 @@ public final class AxpHost {
     }
 
     /* ---------------- 校验器（与 Node validator 同一错误码） ---------------- */
+    /** 类型不匹配时报 SCHEMA_TYPE（与 Node 校验器同码），而不是抛 IllegalArgumentException */
+    static Map<String, Object> objOr(Object o, List<String> err) {
+        try { return Json.obj(o); } catch (IllegalArgumentException e) { err.add("SCHEMA_TYPE"); return new LinkedHashMap<>(); }
+    }
+    /** 数组字段类型不匹配同样报 SCHEMA_TYPE（null / 缺省视为空数组，不算错误） */
+    static List<Object> arrOr(Object o, List<String> err) {
+        if (o == null) return new ArrayList<>();
+        if (o instanceof List) return Json.arr(o);
+        err.add("SCHEMA_TYPE"); return new ArrayList<>();
+    }
+
     public static List<String> validate(File dir) {
         List<String> err = new ArrayList<>();
         File mf = new File(dir, "axp.json");
@@ -134,18 +145,18 @@ public final class AxpHost {
         String id = Json.str(m.get("id"));
         if (!id.matches("^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$")) err.add("ID_INVALID");
         if (!Json.str(m.get("version")).matches("^\\d+\\.\\d+\\.\\d+(?:[-+][\\w.]+)?$")) err.add("VERSION_INVALID");
-        Map<String, Object> dist = m.containsKey("distribution") ? Json.obj(m.get("distribution")) : map();
+        Map<String, Object> dist = m.containsKey("distribution") ? objOr(m.get("distribution"), err) : map();
         String pub = Json.str(dist.get("publisher"));
         if (!pub.matches("^sha256:[0-9a-fA-F]{64}$")) err.add("PUBLISHER_INVALID");
 
         Set<String> refs = new HashSet<>();
-        if (m.get("entry") != null) addRef(refs, Json.str(Json.obj(m.get("entry")).get("js")));
-        if (m.get("hotReload") != null && Json.obj(m.get("hotReload")).get("state") != null)
-            addRef(refs, Json.str(Json.obj(Json.obj(m.get("hotReload")).get("state")).get("migrate")));
-        Map<String, Object> caps = m.containsKey("capabilities") ? Json.obj(m.get("capabilities")) : map();
+        if (m.get("entry") != null) addRef(refs, Json.str(objOr(m.get("entry"), err).get("js")));
+        if (m.get("hotReload") != null && objOr(m.get("hotReload"), err).get("state") != null)
+            addRef(refs, Json.str(objOr(objOr(m.get("hotReload"), err).get("state"), err).get("migrate")));
+        Map<String, Object> caps = m.containsKey("capabilities") ? objOr(m.get("capabilities"), err) : map();
         int ceiling = PRIVS.indexOf(Json.str(caps.get("privilege")));
-        List<String> requests = strings(caps.get("requests"));
-        List<String> dangerous = strings(caps.get("dangerous"));
+        List<String> requests = strings(arrOr(caps.get("requests"), err));
+        List<String> dangerous = strings(arrOr(caps.get("dangerous"), err));
         for (String r : requests) {
             boolean ok = EXACT_REQ.contains(r) || r.matches("^network\\.egress:[^*]+$") || r.matches("^fs\\.(read|write):(app|shared|external)$");
             if (!ok) err.add(r.startsWith("network.egress:") ? "CAP_WILDCARD_EGRESS" : "CAP_UNKNOWN_REQUEST");
@@ -153,38 +164,38 @@ public final class AxpHost {
         for (String d : dangerous) if (!requests.contains(d)) err.add("DANGEROUS_NOT_REQUESTED");
 
         Set<String> toolIds = new HashSet<>();
-        for (Object to : arr(m.get("tools"))) {
-            Map<String, Object> t = Json.obj(to);
+        for (Object to : arrOr(m.get("tools"), err)) {
+            Map<String, Object> t = objOr(to, err);
             String tid = Json.str(t.get("id")); toolIds.add(tid);
             if ("destructive".equals(Json.str(t.get("sideEffects"))) && !Json.bool(t.get("confirm"), false)) err.add("TOOL_CONFIRM_REQUIRED");
             collectImpl(t.get("impl"), refs);
             for (String k : new String[]{"input", "output"}) {
                 Object sch = t.get(k);
-                if (sch != null && Json.obj(sch).containsKey("$ref")) addRef(refs, Json.str(Json.obj(sch).get("$ref")));
+                if (sch != null && objOr(sch, err).containsKey("$ref")) addRef(refs, Json.str(objOr(sch, err).get("$ref")));
             }
             Object g = t.get("gradient");
-            if (g != null) for (Map.Entry<String, Object> e : Json.obj(g).entrySet()) {
+            if (g != null) for (Map.Entry<String, Object> e : objOr(g, err).entrySet()) {
                 int lv = PRIVS.indexOf(e.getKey());
                 if (lv < 0 || lv > ceiling) err.add("GRADIENT_EXCEEDS_PRIVILEGE");
-                collectImpl(Json.obj(e.getValue()).get("impl"), refs);
+                collectImpl(objOr(e.getValue(), err).get("impl"), refs);
             }
         }
-        for (Object ao : arr(m.get("agents"))) {
-            Map<String, Object> a = Json.obj(ao);
+        for (Object ao : arrOr(m.get("agents"), err)) {
+            Map<String, Object> a = objOr(ao, err);
             int lv = PRIVS.indexOf(Json.str(a.get("privilege")));
             if (a.containsKey("privilege") && lv > ceiling) err.add("AGENT_EXCEEDS_PRIVILEGE");
             addRef(refs, Json.str(a.get("prompt")));
         }
-        for (Object so : arr(m.get("surfaces"))) collectImpl(Json.obj(so).get("impl"), refs);
-        for (Object ko : arr(m.get("knowledge"))) addRef(refs, Json.str(Json.obj(ko).get("entry")));
-        for (Object eo : arr(m.get("events"))) collectImpl(Json.obj(eo).get("run"), refs);
+        for (Object so : arrOr(m.get("surfaces"), err)) collectImpl(objOr(so, err).get("impl"), refs);
+        for (Object ko : arrOr(m.get("knowledge"), err)) addRef(refs, Json.str(objOr(ko, err).get("entry")));
+        for (Object eo : arrOr(m.get("events"), err)) collectImpl(objOr(eo, err).get("run"), refs);
         Object ui = m.get("ui");
-        Map<String, Object> u = ui == null ? map() : Json.obj(ui);
+        Map<String, Object> u = ui == null ? map() : objOr(ui, err);
         if (ui != null) {
             for (String slot : new String[]{"panel", "widget", "web", "activity"})
-                if (u.get(slot) != null) addRef(refs, Json.str(Json.obj(u.get(slot)).get("entry")));
-            if (u.get("lifecycle") != null) for (String cb : new String[]{"onLoad", "onReload", "onUnload"}) addRef(refs, Json.str(Json.obj(u.get("lifecycle")).get(cb)));
-            for (Object io : arr(u.get("inject"))) addRef(refs, Json.str(Json.obj(io).get("run")));
+                if (u.get(slot) != null) addRef(refs, Json.str(objOr(u.get(slot), err).get("entry")));
+            if (u.get("lifecycle") != null) for (String cb : new String[]{"onLoad", "onReload", "onUnload"}) addRef(refs, Json.str(objOr(u.get("lifecycle"), err).get(cb)));
+            for (Object io : arrOr(u.get("inject"), err)) addRef(refs, Json.str(objOr(io, err).get("run")));
         }
 
         // 引用完整性
@@ -200,36 +211,37 @@ public final class AxpHost {
         }
         boolean hasBin = false;
         for (String f : all) if (f.endsWith(".so") || f.endsWith(".dex")) hasBin = true;
-        if (hasBin && arr(m.get("abis")).isEmpty()) err.add("ABI_MISSING");
+        if (hasBin && arrOr(m.get("abis"), err).isEmpty()) err.add("ABI_MISSING");
 
         // UI 引用
         Map<String, Object> surfaceMap = new LinkedHashMap<>();
-        for (Object so : arr(m.get("surfaces"))) { Map<String, Object> s = Json.obj(so); surfaceMap.put(Json.str(s.get("uri")), s); }
+        for (Object so : arrOr(m.get("surfaces"), err)) { Map<String, Object> s = objOr(so, err); surfaceMap.put(Json.str(s.get("uri")), s); }
         Set<String> panelNodes = new HashSet<>();
         if (u.get("panel") != null) {
-            File pf = new File(dir, Json.str(Json.obj(u.get("panel")).get("entry")));
-            if (pf.exists()) for (Object n : arr(json(pf).get("nodes"))) panelNodes.add(Json.str(Json.obj(n).get("id")));
+            File pf = new File(dir, Json.str(objOr(u.get("panel"), err).get("entry")));
+            if (pf.exists()) for (Object n : arr(json(pf).get("nodes"))) panelNodes.add(Json.str(objOr(n, err).get("id")));
         }
-        for (Object bo : arr(u.get("bind"))) {
-            Map<String, Object> b = Json.obj(bo);
-            Map<String, Object> s = (Map<String, Object>) surfaceMap.get(Json.str(b.get("from")));
-            if (s != null && !Json.bool(s.get("watchable"), false)) err.add("SURFACE_NOT_WATCHABLE");
+        for (Object bo : arrOr(u.get("bind"), err)) {
+            Map<String, Object> b = objOr(bo, err);
+            @SuppressWarnings("unchecked") Map<String, Object> s = (Map<String, Object>) surfaceMap.get(Json.str(b.get("from")));
+            if (s == null) err.add("SURFACE_UNDECLARED");                       // 与 Node 校验器同码：bind 源必须在本包 surfaces[] 声明
+            else if (!Json.bool(s.get("watchable"), false)) err.add("SURFACE_NOT_WATCHABLE");
             String[] parts = Json.str(b.get("to")).split("\\.");
             if (!panelNodes.isEmpty() && (parts.length < 3 || !panelNodes.contains(parts[2]))) err.add("UI_BIND_TARGET_MISSING");
         }
-        for (Object ao : arr(u.get("actions"))) if (!toolIds.contains(Json.str(Json.obj(ao).get("tool")))) err.add("UI_ACTION_TOOL_MISSING");
-        for (Object eo : arr(m.get("events"))) {
-            Map<String, Object> e = Json.obj(eo);
-            Map<String, Object> s = (Map<String, Object>) surfaceMap.get(Json.str(e.get("on")));
+        for (Object ao : arrOr(u.get("actions"), err)) if (!toolIds.contains(Json.str(objOr(ao, err).get("tool")))) err.add("UI_ACTION_TOOL_MISSING");
+        for (Object eo : arrOr(m.get("events"), err)) {
+            Map<String, Object> e = objOr(eo, err);
+            @SuppressWarnings("unchecked") Map<String, Object> s = (Map<String, Object>) surfaceMap.get(Json.str(e.get("on")));
             if (s != null && !Json.bool(s.get("watchable"), false)) err.add("SURFACE_NOT_WATCHABLE");
         }
         Object hr = m.get("hotReload");
-        if (hr != null && Json.bool(Json.obj(hr).get("enabled"), false)) {
-            Map<String, Object> h = Json.obj(hr);
+        if (hr != null && Json.bool(objOr(hr, err).get("enabled"), false)) {
+            Map<String, Object> h = objOr(hr, err);
             if (!"on-every-load".equals(Json.str(h.get("signature")))) err.add("HOT_SIGNATURE_POLICY");
             if (!"isolated".equals(Json.str(h.get("classloader")))) err.add("HOT_CLASSLOADER");
-            if (arr(h.get("targets")).isEmpty()) err.add("HOT_NO_TARGETS");
-            for (Object s : arr(h.get("sources"))) if ("network-unsigned".equals(Json.str(s))) err.add("HOT_UNSIGNED_SOURCE");
+            if (arrOr(h.get("targets"), err).isEmpty()) err.add("HOT_NO_TARGETS");
+            for (Object s : arrOr(h.get("sources"), err)) if ("network-unsigned".equals(Json.str(s))) err.add("HOT_UNSIGNED_SOURCE");
         }
         return err;
     }
@@ -433,10 +445,13 @@ public final class AxpHost {
         Ctx ctx = new Ctx(pluginId, m);
         ctx.audit("invoke", map("tool", toolId, "layer", layer, "pick", pick));
         if (!"js".equals(pick)) return map("ok", Boolean.FALSE, "error", "IMPL_UNAVAILABLE", "layer", layer, "pick", pick);
+        // js 引用支持 #fragment 命名入口（与 Node 运行时同语义）
+        String jsRef = Json.str(impl.get("js"));
+        String entryName = jsRef.contains("#") ? jsRef.substring(jsRef.indexOf('#') + 1) : "run";
         String src;
-        try { src = read(new File(dir, Json.str(impl.get("js")))); } catch (IOException e) { throw new Err("IMPL_FILE_MISSING", e.getMessage()); }
+        try { src = read(new File(dir, jsRef.split("#")[0])); } catch (IOException e) { throw new Err("IMPL_FILE_MISSING", e.getMessage()); }
         String res;
-        try { res = js.run(src, Json.stringify(args == null ? map() : args), ctx); }
+        try { res = js.run(src, Json.stringify(args == null ? map() : args), ctx, entryName); }
         catch (Exception e) {
             String msg = String.valueOf(e.getMessage());
             String code = (msg.contains("STORAGE_DENIED") || msg.contains("not declared")) ? "STORAGE_DENIED"

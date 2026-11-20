@@ -14,12 +14,18 @@ public interface JsRunner {
         void uiPush(String node, String valueJson);
     }
 
-    /** 执行 impl.js 源码（已去掉 export），返回 JSON 字符串。 */
-    String run(String source, String argsJson, HostContext ctx) throws Exception;
+    /** 执行 impl.js 源码（已去掉 export），返回 JSON 字符串。entry 为命名入口（#fragment），默认 run。 */
+    String run(String source, String argsJson, HostContext ctx, String entry) throws Exception;
 
-    /** 两端共用的 JS 包装：把 Java HostContext 映射成 spec/11 的 ctx。 */
-    static String wrapper(String source, String argsJson) {
+    /** 兼容旧签名：默认入口 run。 */
+    default String run(String source, String argsJson, HostContext ctx) throws Exception {
+        return run(source, argsJson, ctx, "run");
+    }
+
+    /** 两端共用的 JS 包装：把 Java HostContext 映射成 spec/11 的 ctx；entry 支持 #fragment 命名入口。 */
+    static String wrapper(String source, String argsJson, String entry) {
         String src = source.replaceAll("(?m)^\\s*export\\s+", "");
+        String fn = (entry == null || entry.isEmpty()) ? "run" : entry;
         return "var __c = ctx;"
              + "var __axp = {"
              + " storage: {"
@@ -35,6 +41,11 @@ public interface JsRunner {
              + " confirm: true };"
              + "var __args = JSON.parse(" + Json.stringify(argsJson) + ");"
              + "JSON.stringify((function(){ " + src + "\n;"
-             + " return (typeof run === 'function') ? run(__args, __axp) : null; })());";
+             + " return (typeof " + fn + " === 'function') ? " + fn + "(__args, __axp) : null; })());";
+    }
+
+    /** 兼容旧签名：默认入口 run。 */
+    static String wrapper(String source, String argsJson) {
+        return wrapper(source, argsJson, "run");
     }
 }

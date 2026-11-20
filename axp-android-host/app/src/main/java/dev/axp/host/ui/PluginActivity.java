@@ -30,8 +30,9 @@ public final class PluginActivity extends Activity {
     private Map<String, Object> snapshot;
 
     private final AxpHost.SurfaceListener onSurface = new AxpHost.SurfaceListener() {
-        @Override public void onDelta(String p, String uri) {
-            AxpApplication.UI.post(new Runnable() { @Override public void run() { render(); } });
+        @Override public void onDelta(String p, final String uri) {
+            // Surface 增量只刷新绑定的节点：全量重建会丢弃未提交的输入与焦点
+            AxpApplication.UI.post(new Runnable() { @Override public void run() { updateBindings(); } });
         }
     };
 
@@ -112,6 +113,19 @@ public final class PluginActivity extends Activity {
         return Json.stringify(v);
     }
 
+    /** Surface 增量 → 只更新绑定节点的文本，不动输入框 / 滚动 / 焦点 */
+    private void updateBindings() {
+        if (snapshot == null || !Json.bool(snapshot.get("ok"), false)) return;
+        try {
+            Map<String, Object> fresh = AxpApplication.HOST.ui(plugin);
+            if (!Json.bool(fresh.get("ok"), false)) return;
+            Map<String, Object> bindings = Json.obj(fresh.get("bindings"));
+            for (Map.Entry<String, TextView> e : boundViews.entrySet()) {
+                if (bindings.containsKey(e.getKey())) e.getValue().setText(format(bindings.get(e.getKey())));
+            }
+        } catch (Exception ignored) { /* 刷新失败保持现状，下次增量再试 */ }
+    }
+
     private void fire(String action) {
         String tool = null;
         for (Object a : Json.arr(snapshot.get("actions"))) {
@@ -119,32 +133,55 @@ public final class PluginActivity extends Activity {
             if (action.equals(Json.str(x.get("id")))) tool = Json.str(x.get("tool"));
         }
         if (tool == null) { Toast.makeText(this, "未绑定动作: " + action, Toast.LENGTH_SHORT).show(); return; }
-        final String t = tool;
         Map<String, Object> args = AxpHost.map();
         for (Map.Entry<String, EditText> e : inputs.entrySet()) {
             String key = guessArg(e.getKey());
             args.put(key, e.getValue().getText().toString());
         }
-        final Map<String, Object> a = args;
-        Map<String, Object> probe = AxpApplication.HOST.invoke(plugin, t, a, false);
-        if ("CONFIRM_REQUIRED".equals(Json.str(probe.get("error")))) {
-            new AlertDialog.Builder(this).setTitle("需要确认")
-                .setMessage("工具 " + t + " 会操作设备，是否继续？")
-                .setPositiveButton("继续", (d, w) -> doInvoke(t, a, true))
-                .setNegativeButton("取消", null).show();
-        } else doInvoke(t, a, false);
+        runInvoke(tool, args, false, true);
     }
 
-    private void doInvoke(String tool, Map<String, Object> args, boolean confirm) {
-        try {
-            Map<String, Object> r = AxpApplication.HOST.invoke(plugin, tool, args, confirm);
-            if (!Json.bool(r.get("ok"), false)) {
-                Toast.makeText(this, "调用失败: " + Json.str(r.get("error")), Toast.LENGTH_LONG).show();
-            } else {
-                AxpApplication.PLATFORM.dispatch(r.get("result"));   // 结构化指令 → 真实系统动作
-                render();                                            // ui.bind 刷新
+    /**
+     * 宿主调用始终在工作线程执行（WebViewJsRunner 不允许 UI 线程阻塞等待），
+     * 结果回 UI 线程消费。probe=true 是首次探测：CONFIRM_REQUIRED → 弹确认后
+     * 以 confirm=true 重调；非确认工具直接复用这次结果，不会执行两次。
+     */
+    private void runInvoke(final String tool, final Map<String, Object> args, final boolean confirm, final boolean probe) {
+        Thread worker = new Thread(new Runnable() {
+            @Override public void run() {
+                final Map<String, Object> r;
+                try { r = AxpApplication.HOST.invoke(plugin, tool, args, confirm); }
+                catch (final Exception e) {
+                    AxpApplication.UI.post(new Runnable() {
+                        @Override public void run() { Toast.makeText(PluginActivity.this, "错误: " + e.getMessage(), Toast.LENGTH_LONG).show(); }
+                    });
+                    return;
+                }
+                AxpApplication.UI.post(new Runnable() {
+                    @Override public void run() {
+                        if (probe && "CONFIRM_REQUIRED".equals(Json.str(r.get("error")))) {
+                            new AlertDialog.Builder(PluginActivity.this).setTitle("需要确认")
+                                .setMessage("工具 " + tool + " 会操作设备，是否继续？")
+                                .setPositiveButton("继续", (d, w) -> runInvoke(tool, args, true, false))
+                                .setNegativeButton("取消", null).show();
+                        } else {
+                            handleResult(tool, r);
+                        }
+                    }
+                });
             }
-        } catch (Exception e) { Toast.makeText(this, "错误: " + e.getMessage(), Toast.LENGTH_LONG).show(); }
+        }, "axp-invoke");
+        worker.start();
+    }
+
+    /** 统一消费调用结果（在 UI 线程）：结构化指令 → 真实系统动作；成功后刷新绑定 */
+    private void handleResult(String tool, Map<String, Object> r) {
+        if (!Json.bool(r.get("ok"), false)) {
+            Toast.makeText(this, "调用失败: " + Json.str(r.get("error")), Toast.LENGTH_LONG).show();
+            return;
+        }
+        AxpApplication.PLATFORM.dispatch(r.get("result"));   // 结构化指令 → 真实系统动作
+        updateBindings();                                      // ui.bind 刷新（保留输入）
     }
 
     private String guessArg(String inputId) {
