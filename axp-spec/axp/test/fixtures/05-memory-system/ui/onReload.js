@@ -1,1 +1,1 @@
-export function onReload(oldState, newState, ctx) { return newState; }
+export function onReload(ctx) { ctx.log('memory panel hot-replaced'); return ctx.newState; }

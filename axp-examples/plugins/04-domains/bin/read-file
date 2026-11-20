@@ -1,4 +1,6 @@
 #!/bin/sh
-# L3 实现体占位：独立可执行，stdin/stdout JSON。
+# L3 实现体：stdin 收 JSON {path}，stdout 回该文件文本；读不到以非零退出。
 # 由 axp.json 的 tools[file.read].gradient.L3.impl.proc.cmd 声明引用。
-cat
+path=$(sed -n 's/.*"path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+[ -n "$path" ] || exit 2
+cat "$path" 2>/dev/null || exit 1

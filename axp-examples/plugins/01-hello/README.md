@@ -19,9 +19,9 @@
 
 ## 安装
 ```bash
-node validator/src/validate.mjs examples/01-hello
-node cli/bin/axp.mjs pack examples/01-hello -o hello.axp
-apksigner sign --v3 --ks release.jks hello.axp
+node axp-spec/axp/validator/src/validate.mjs axp-examples/plugins/01-hello
+node axp-spec/axp/cli/bin/axp.mjs pack axp-examples/plugins/01-hello -o hello.axp
+apksigner sign --v3-signing-enabled true --ks release.jks hello.axp
 ```
 
 ## 验证

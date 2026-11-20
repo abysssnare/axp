@@ -103,7 +103,7 @@
             }
           }
         },
-        "sideEffects": { "enum": ["none", "read", "device", "destructive"] },
+        "sideEffects": { "enum": ["none", "read", "write", "device", "destructive"] },
         "confirm": { "type": "boolean" },
         "cost": { "enum": ["fast", "slow"] }
       },

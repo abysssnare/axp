@@ -28,7 +28,7 @@
       "impl": {
         "js": "tools/pack.js"
       },
-      "sideEffects": "read",
+      "sideEffects": "write",
       "cost": "slow"
     },
     {

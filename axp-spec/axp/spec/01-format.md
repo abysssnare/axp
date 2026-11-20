@@ -214,7 +214,7 @@ com.example.demo.axp/            # 目录形态（开发）；同名 .axp zip（
     "L2": { "impl": { "js": "tools/tap-a11y.js" } },
     "L3": { "impl": { "bin": "tools/tap-shell" } }
   },
-  "sideEffects": "device",       // none | read | device | destructive
+  "sideEffects": "device",       // none | read | write | device | destructive
   "confirm": true,               // 调用前需用户确认
   "cost": "fast"                 // fast | slow，供模型做工具选择
 }

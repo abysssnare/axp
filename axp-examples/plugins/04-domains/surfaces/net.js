@@ -1,1 +1,1 @@
-export function subscribe(emit) { emit({ type: 'delta', value: 'connected' }); return () => {}; }
+export function subscribe(emit) { emit({ type: 'full', view: 'value', value: 'connected' }); return () => {}; }

@@ -1,1 +1,1 @@
-export function onUnload(state, ctx) { ctx.audit.log({ kind: 'ui.onUnload' }); }
+export function onUnload(ctx) { ctx.log('memory panel unmounting'); }

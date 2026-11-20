@@ -29,7 +29,7 @@
 未启用。本示例只演示感知域；热加载见 [`03-hot-reload`](../03-hot-reload)。
 
 ## 验证
-- [ ] `axp validate examples/04-domains` 全绿
+- [ ] `axp validate axp-examples/plugins/04-domains` 全绿
 - [ ] 把 `axp://sysprop/{key}` 改成 `watchable: true` 仍合法，但不要把它写进 `ui.bind`（不可订阅域不应作绑定源）
 - [ ] 把某条 `ui.bind[].from` 指向未声明的 URI → 引用完整性检查报错
 - [ ] 把 `gradient` 加到 `L4` → `GRADIENT_EXCEEDS_PRIVILEGE`

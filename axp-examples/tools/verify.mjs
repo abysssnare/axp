@@ -14,9 +14,10 @@ let bad = 0;
 console.log('AXP examples verify — ' + dirs.length + ' plugins\n');
 for (const d of dirs) {
   const r = validate(d);
+  if (!r.ok) { bad++; console.log(`  FAIL ${path.basename(d)}: ` + r.errors.map(e => e.code).join(', ')); continue; }
+  // 清单读取放在校验通过之后：校验失败时先报告校验错误，不因解析坏清单而中断
   const m = JSON.parse(fs.readFileSync(path.join(d, 'axp.json'), 'utf8'));
-  if (r.ok) console.log(`  OK  ${path.basename(d).padEnd(24)} ${m.id.padEnd(28)} tools=${(m.tools||[]).length} ui=${m.ui?'yes':'no'}`);
-  else { bad++; console.log(`  FAIL ${path.basename(d)}: ` + r.errors.map(e => e.code).join(', ')); }
+  console.log(`  OK  ${path.basename(d).padEnd(24)} ${m.id.padEnd(28)} tools=${(m.tools||[]).length} ui=${m.ui?'yes':'no'}`);
 }
 console.log(`\n${dirs.length - bad}/${dirs.length} plugins valid`);
 process.exitCode = bad ? 1 : 0;

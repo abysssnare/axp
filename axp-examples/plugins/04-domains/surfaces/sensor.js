@@ -1,1 +1,1 @@
-export function subscribe(emit) { emit({ type: 'delta', value: 0 }); return () => {}; }
+export function subscribe(emit) { emit({ type: 'full', view: 'value', value: 0 }); return () => {}; }
