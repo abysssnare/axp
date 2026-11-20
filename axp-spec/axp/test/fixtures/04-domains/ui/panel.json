@@ -1,0 +1,18 @@
+{
+  "axpUi": "1.0",
+  "root": "main",
+  "theme": "host",
+  "state": { "scroll": 0 },
+  "nodes": [
+    { "id": "main", "type": "Scaffold", "props": { "title": "环境感知面板" }, "children": ["title", "screenTree", "notify", "motion", "clip", "net", "row"] },
+    { "id": "title", "type": "Text", "props": { "text": "13 个标准域 · M3 示例", "style": "title" } },
+    { "id": "screenTree", "type": "Text", "props": { "text": "${surface:axp://screen.tree}", "style": "mono" } },
+    { "id": "notify", "type": "Text", "props": { "text": "${surface:axp://notification/stream.text}", "style": "body" } },
+    { "id": "motion", "type": "Text", "props": { "text": "${surface:axp://sensor/motion.value}", "style": "mono" } },
+    { "id": "clip", "type": "Text", "props": { "text": "${surface:axp://clipboard.text}", "style": "body" } },
+    { "id": "net", "type": "Text", "props": { "text": "${surface:axp://net/wlan0.value}", "style": "body" } },
+    { "id": "row", "type": "Row", "props": { "spacing": 8 }, "children": ["sumBtn", "propBtn"] },
+    { "id": "sumBtn", "type": "Button", "props": { "label": "汇总", "action": "ui.panel.summarize" } },
+    { "id": "propBtn", "type": "Button", "props": { "label": "读系统属性", "action": "ui.panel.readProp" } }
+  ]
+}

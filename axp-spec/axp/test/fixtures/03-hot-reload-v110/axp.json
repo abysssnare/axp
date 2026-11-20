@@ -1,0 +1,126 @@
+{
+  "axp": "1.0",
+  "id": "com.example.autopay",
+  "name": { "zh": "自动记账", "en": "Auto Ledger" },
+  "version": "1.1.0",
+  "description": "覆盖六类组件、UI、权限梯度与热加载的综合示例",
+  "minHost": "0.3.0",
+  "minAndroid": 26,
+  "abis": [],
+  "entry": { "js": "main.js", "engine": "quickjs" },
+  "tools": [
+    {
+      "id": "ledger.ocr",
+      "description": "从截图中识别订单号",
+      "input": { "type": "object" },
+      "output": { "type": "object" },
+      "impl": { "js": "tools/ocr.js" },
+      "sideEffects": "read",
+      "cost": "slow"
+    },
+    {
+      "id": "screen.tap",
+      "description": "点击屏幕坐标",
+      "input": { "type": "object" },
+      "gradient": {
+        "L2": { "impl": { "js": "tools/tap-a11y.js" } },
+        "L3": { "impl": { "bin": "tools/tap-shell", "js": "tools/tap-shell-fallback.js" } }
+      },
+      "sideEffects": "device",
+      "confirm": true,
+      "cost": "fast"
+    }
+  ],
+  "surfaces": [
+    {
+      "uri": "axp://vision/screen",
+      "description": "当前屏幕的无障碍节点树",
+      "views": ["tree", "text", "image"],
+      "anchor": "node",
+      "watchable": true,
+      "auth": "L2",
+      "impl": { "js": "surfaces/vision.js" }
+    }
+  ],
+  "knowledge": [
+    {
+      "id": "wechat-pay-flow",
+      "kind": "skill",
+      "entry": "skills/pay-flow/SKILL.md",
+      "progressive": true,
+      "triggers": [
+        { "on": "axp://vision/screen", "filter": "text~'转账'" }
+      ],
+      "allowedTools": ["screen.tap", "ledger.ocr"]
+    }
+  ],
+  "agents": [
+    {
+      "id": "pay-walker",
+      "prompt": "agents/walker.md",
+      "tools": ["screen.tap", "ledger.ocr"],
+      "knowledge": ["wechat-pay-flow"],
+      "model": "host-default",
+      "maxTurns": 20,
+      "privilege": "L2"
+    }
+  ],
+  "events": [
+    {
+      "on": "axp://vision/screen",
+      "filter": "text~'验证码'",
+      "run": { "js": "events/otp.js" },
+      "privilege": "L2"
+    }
+  ],
+  "ui": {
+    "panel": { "kind": "dsl", "entry": "ui/panel.json" },
+    "inject": [
+      { "surface": "chat.menu.long-press", "label": "识别本条账单", "run": "ui/inject.js" }
+    ],
+    "lifecycle": {
+      "onLoad": "ui/onLoad.js",
+      "onReload": "ui/onReload.js",
+      "onUnload": "ui/onUnload.js"
+    },
+    "bind": [
+      { "from": "axp://vision/screen", "to": "ui.panel.tree" }
+    ],
+    "actions": [
+      { "id": "ui.panel.ocr", "tool": "ledger.ocr" },
+      { "id": "ui.panel.tap", "tool": "screen.tap" }
+    ]
+  },
+  "hotReload": {
+    "enabled": true,
+    "unit": "component",
+    "targets": ["ui.*", "tools.*", "knowledge.*"],
+    "strategy": "graceful",
+    "signature": "on-every-load",
+    "sources": ["package", "trusted-channel"],
+    "state": {
+      "migrate": "ui/state.migrate.json",
+      "preserve": ["ui.panel.scroll", "agents.*.history"]
+    },
+    "rollback": { "keep": 2, "onError": true },
+    "uiRebuild": "recompose",
+    "classloader": "isolated"
+  },
+  "capabilities": {
+    "privilege": "L3",
+    "requests": [
+      "accessibility.gestures",
+      "notification.listen",
+      "network.egress:api.example.com"
+    ],
+    "dangerous": ["accessibility.gestures"],
+    "runtimeServices": ["sampling", "ui.push", "audit.read"]
+  },
+  "instances": { "multi": false },
+  "runtime": { "memoryMB": 128, "cpuPct": 20, "allowDynamicCode": false },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  }
+}

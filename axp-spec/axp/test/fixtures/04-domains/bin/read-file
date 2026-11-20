@@ -1,0 +1,4 @@
+#!/bin/sh
+# L3 实现体占位：独立可执行，stdin/stdout JSON。
+# 由 axp.json 的 tools[file.read].gradient.L3.impl.proc.cmd 声明引用。
+cat

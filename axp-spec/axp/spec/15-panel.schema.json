@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axp-spec.dev/schema/1.0/panel.json",
+  "title": "AXP UI Panel DSL v1.1",
+  "description": "Accepts both legacy flat-id form (axpUi/root/children) and v1.1 nested form (type/title/nodes).",
+  "type": "object",
+  "required": ["nodes"],
+  "anyOf": [
+    {
+      "title": "form-A-legacy",
+      "required": ["axpUi", "root"],
+      "properties": {
+        "axpUi": { "const": "1.0" },
+        "root": { "type": "string", "minLength": 1 },
+        "theme": { "type": "string" },
+        "state": { "type": "object" }
+      }
+    },
+    {
+      "title": "form-B-nested",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["Scaffold", "Column", "Row", "Card"] },
+        "title": { "type": "string" },
+        "padding": { "type": "integer" }
+      }
+    }
+  ],
+  "properties": {
+    "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "type": { "enum": ["Scaffold", "Column", "Row", "Card", "Text", "Input", "Button", "List", "Image", "Divider", "Spacer", "Select", "Progress"] },
+        "props": { "type": "object" },
+        "children": { "type": "array" },
+        "nodes": { "type": "array" }
+      }
+    }
+  }
+}

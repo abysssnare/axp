@@ -1,0 +1,151 @@
+{
+  "axp": "1.0",
+  "id": "com.example.memory",
+  "name": {
+    "zh": "记忆系统",
+    "en": "Memory"
+  },
+  "version": "1.0.0",
+  "description": "带界面的记忆与储存插件，点开可查看/写入/检索",
+  "minHost": "0.1.0",
+  "minAndroid": 26,
+  "abis": [],
+  "tools": [
+    {
+      "id": "memory.add",
+      "description": "写入一条记忆",
+      "input": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "impl": {
+        "js": "tools/add.js"
+      },
+      "sideEffects": "none",
+      "cost": "fast"
+    },
+    {
+      "id": "memory.list",
+      "description": "列出全部记忆",
+      "input": {
+        "type": "object"
+      },
+      "impl": {
+        "js": "tools/list.js"
+      },
+      "sideEffects": "none",
+      "cost": "fast"
+    },
+    {
+      "id": "memory.search",
+      "description": "按关键词检索记忆",
+      "input": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "impl": {
+        "js": "tools/search.js"
+      },
+      "sideEffects": "none",
+      "cost": "fast"
+    },
+    {
+      "id": "memory.clear",
+      "description": "清空全部记忆",
+      "input": {
+        "type": "object"
+      },
+      "impl": {
+        "js": "tools/clear.js"
+      },
+      "sideEffects": "device",
+      "confirm": true,
+      "cost": "fast"
+    }
+  ],
+  "capabilities": {
+    "privilege": "L1",
+    "requests": [
+      "fs.read:shared",
+      "fs.write:shared"
+    ],
+    "runtimeServices": [
+      "storage",
+      "ui.push"
+    ]
+  },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  },
+  "surfaces": [
+    {
+      "uri": "axp://x/com.example.memory/entries",
+      "description": "记忆条目列表",
+      "views": [
+        "list",
+        "text"
+      ],
+      "anchor": "uri",
+      "watchable": true,
+      "auth": "L1",
+      "impl": {
+        "js": "surfaces/entries.js"
+      }
+    }
+  ],
+  "ui": {
+    "panel": {
+      "kind": "dsl",
+      "entry": "ui/panel.json"
+    },
+    "lifecycle": {
+      "onLoad": "ui/onLoad.js",
+      "onReload": "ui/onReload.js",
+      "onUnload": "ui/onUnload.js"
+    },
+    "bind": [
+      {
+        "from": "axp://x/com.example.memory/entries",
+        "to": "ui.panel.list"
+      },
+      {
+        "from": "axp://x/com.example.memory/entries",
+        "to": "ui.panel.count"
+      }
+    ],
+    "actions": [
+      {
+        "id": "ui.panel.add",
+        "tool": "memory.add"
+      },
+      {
+        "id": "ui.panel.clear",
+        "tool": "memory.clear"
+      }
+    ]
+  },
+  "instances": {
+    "multi": false
+  },
+  "runtime": {
+    "memoryMB": 32,
+    "cpuPct": 5,
+    "allowDynamicCode": false
+  }
+}

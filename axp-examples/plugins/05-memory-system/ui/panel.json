@@ -1,0 +1,53 @@
+{
+  "type": "Scaffold",
+  "title": "记忆与储存",
+  "nodes": [
+    {
+      "id": "title",
+      "type": "Text",
+      "props": {
+        "text": "我的记忆",
+        "style": "title"
+      }
+    },
+    {
+      "id": "input",
+      "type": "Input",
+      "props": {
+        "label": "输入内容",
+        "value": "${state:draft}"
+      }
+    },
+    {
+      "id": "add",
+      "type": "Button",
+      "props": {
+        "label": "记住",
+        "action": "ui.panel.add"
+      }
+    },
+    {
+      "id": "list",
+      "type": "List",
+      "props": {
+        "items": "${surface:axp://x/com.example.memory/entries}",
+        "divider": true
+      }
+    },
+    {
+      "id": "count",
+      "type": "Text",
+      "props": {
+        "text": "条目数：${state:count}"
+      }
+    },
+    {
+      "id": "clear",
+      "type": "Button",
+      "props": {
+        "label": "清空",
+        "action": "ui.panel.clear"
+      }
+    }
+  ]
+}

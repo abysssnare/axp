@@ -1,0 +1,3 @@
+#!/bin/sh
+# L3 实现体：独立可执行，stdin/stdout JSON。此处为占位示例。
+cat

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AXP Reference Host</string>
+    <string name="axp_a11y_desc">允许 AXP 插件读取屏幕节点以执行已声明的工具</string>
+</resources>

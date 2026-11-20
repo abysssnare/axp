@@ -1,0 +1,14 @@
+{
+  "name": "@axp/reference-runtime",
+  "version": "1.0.0",
+  "description": "Executable reference host for AXP v1.0 (M2, AXP-3 level). Not for npm publishing: main entry src/host.mjs loads src/loader.mjs and the validator via relative paths outside this package — consume as part of the axp-spec monorepo.",
+  "type": "module",
+  "main": "src/host.mjs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "smoke": "node test/smoke.mjs"
+  }
+}

@@ -1,0 +1,2 @@
+// AXP Android Host — 零第三方依赖（仅 Android Gradle Plugin）
+plugins { id 'com.android.application' version '8.7.3' apply false }

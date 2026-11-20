@@ -1,0 +1,67 @@
+{
+  "axp": "1.0",
+  "id": "com.example.panel",
+  "name": { "zh": "屏幕面板", "en": "Screen Panel" },
+  "version": "1.0.0",
+  "description": "带声明式界面、数据绑定与动作回填的插件",
+  "minAndroid": 26,
+  "abis": [],
+  "tools": [
+    {
+      "id": "screen.tap",
+      "description": "点击屏幕坐标",
+      "input": { "type": "object" },
+      "impl": { "js": "tools/tap.js" },
+      "sideEffects": "device",
+      "confirm": true,
+      "cost": "fast"
+    },
+    {
+      "id": "demo.refresh",
+      "description": "刷新面板数据",
+      "input": { "type": "object" },
+      "impl": { "js": "tools/refresh.js" },
+      "sideEffects": "read",
+      "cost": "fast"
+    }
+  ],
+  "surfaces": [
+    {
+      "uri": "axp://x/com.example.panel/vision/screen",
+      "description": "当前屏幕节点树",
+      "views": ["tree", "text"],
+      "anchor": "node",
+      "watchable": true,
+      "auth": "L2",
+      "impl": { "js": "surfaces/screen.js" }
+    }
+  ],
+  "ui": {
+    "panel": { "kind": "dsl", "entry": "ui/panel.json" },
+    "lifecycle": {
+      "onLoad": "ui/onLoad.js",
+      "onReload": "ui/onReload.js",
+      "onUnload": "ui/onUnload.js"
+    },
+    "bind": [
+      { "from": "axp://x/com.example.panel/vision/screen", "to": "ui.panel.tree" }
+    ],
+    "actions": [
+      { "id": "ui.panel.tap", "tool": "screen.tap" },
+      { "id": "ui.panel.refresh", "tool": "demo.refresh" }
+    ]
+  },
+  "capabilities": {
+    "privilege": "L2",
+    "requests": ["accessibility.read"],
+    "dangerous": ["accessibility.read"],
+    "runtimeServices": ["ui.push"]
+  },
+  "instances": { "multi": false },
+  "runtime": { "memoryMB": 64, "cpuPct": 10, "allowDynamicCode": false },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  }
+}
