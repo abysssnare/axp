@@ -192,7 +192,7 @@ function allImpls(m) {
 
 /* ---------------- main validation ---------------- */
 
-export function validate(dir) {
+export function validate(dir, preM) {
   const errors = [], warnings = [], info = [];
   const err = (code, msg, p = '') => errors.push({ code, msg, path: p });
   const warn = (code, msg, p = '') => warnings.push({ code, msg, path: p });
@@ -208,8 +208,14 @@ export function validate(dir) {
     return { ok: false, errors, warnings, info, summary: null };
   }
   let m;
-  try { m = JSON.parse(fs.readFileSync(mf, 'utf8')); }
-  catch (e) { err('MANIFEST_PARSE', e.message); return { ok: false, errors, warnings, info, summary: null }; }
+  if (preM !== undefined && preM !== null) {
+    // 调用方（运行时装载流水线）已解析过同一份清单：复用它，
+    // 消除「校验读一份、注册用另一份」的窗口
+    m = preM;
+  } else {
+    try { m = JSON.parse(fs.readFileSync(mf, 'utf8')); }
+    catch (e) { err('MANIFEST_PARSE', e.message); return { ok: false, errors, warnings, info, summary: null }; }
+  }
 
   // 2. schema
   const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf8'));

@@ -18,7 +18,7 @@ export function loadBundle(host, dir, preM) {
     try { m = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')); }
     catch (e) { step(1, 'MANIFEST_PARSE', e.message); }
   }
-  const r = validate(abs);
+  const r = validate(abs, m);   // 与后续注册共用同一份解析结果，消除「校验读一份、注册用另一份」的窗口
   if (!r.ok) {
     const e = r.errors[0];
     step(2, e.code, `${e.msg}${e.path ? ' @ ' + e.path : ''}`);
@@ -33,47 +33,63 @@ export function loadBundle(host, dir, preM) {
   // 4–6 已由 validate() 覆盖：引用完整性 / abis / 依赖闭包 / 权限上限
   host.audit.record('load-checks', { plugin: m.id, refs: r.summary.refs, files: r.summary.files });
 
-  // 7 注册组件
+  // 7 注册组件（任一步失败整包拒绝，不部分注册：失败时回滚候选已注册的流/订阅/UI）
   const plugin = {
     id: m.id, manifest: m, dir: abs, registry: null, ui: null,
     _surfaceUnsubs: [], loadedAt: Date.now(),
   };
-  plugin.registry = new host.RegistryCtor(host, plugin);
-  for (const s of m.surfaces || []) host.surfaces.register(plugin, s);
-  host.audit.record('load-register', {
-    plugin: m.id,
-    tools: (m.tools || []).length, surfaces: (m.surfaces || []).length,
-    knowledge: (m.knowledge || []).length, agents: (m.agents || []).length, events: (m.events || []).length,
-  });
-
-  // 8 UI 挂载
-  plugin.ui = new host.UiCtor(host, plugin);
-  const mounted = plugin.ui.mount();
-  host.audit.record('load-ui', { plugin: m.id, ...mounted });
-
-  // 9 Surface 初始全量 + 事件/绑定订阅
-  host.surfaces.prime(plugin);
-  for (const e of m.events || []) {
-    if (!host.surfaces.streams.has(e.on)) {
-      // 生命周期事件（lifecycle/*）不在 bus 内：显式登记为不支持，不计入已装载事件，
-      // 生产宿主实现 dispatch 后再放开（spec/05-domains.md §events）。
-      host.audit.record('event-unsupported', { plugin: m.id, on: e.on, reason: 'EVENT_SOURCE_NOT_IN_BUS' });
-      continue;
-    }
-    const un = host.surfaces.subscribe(e.on, delta => {
-      if (e.filter && !matchFilter(e.filter, delta)) return;
-      const chosen = (awaitImpl(e.run));
-      host.audit.record('event-fire', { plugin: m.id, on: e.on, filter: e.filter || null });
-      if (chosen) host.impl.callImpl(plugin.dir, chosen, 'event', { delta }, { log: (...a) => host.log('[event]', ...a) });
+  try {
+    plugin.registry = new host.RegistryCtor(host, plugin);
+    for (const s of m.surfaces || []) host.surfaces.register(plugin, s);
+    host.audit.record('load-register', {
+      plugin: m.id,
+      tools: (m.tools || []).length, surfaces: (m.surfaces || []).length,
+      knowledge: (m.knowledge || []).length, agents: (m.agents || []).length, events: (m.events || []).length,
     });
-    plugin._surfaceUnsubs.push(un);
-  }
-  host.audit.record('load-events', { plugin: m.id, count: (m.events || []).filter(e => host.surfaces.streams.has(e.on)).length });
 
-  // 热加载就绪
-  if (m.hotReload?.enabled) host.hot.prepare(plugin);
+    // 8 UI 挂载
+    plugin.ui = new host.UiCtor(host, plugin);
+    const mounted = plugin.ui.mount();
+    host.audit.record('load-ui', { plugin: m.id, ...mounted });
+
+    // 9 Surface 初始全量 + 事件/绑定订阅
+    host.surfaces.prime(plugin);
+    for (const e of m.events || []) {
+      if (!host.surfaces.streams.has(e.on)) {
+        // 生命周期事件（lifecycle/*）不在 bus 内：显式登记为不支持，不计入已装载事件，
+        // 生产宿主实现 dispatch 后再放开（spec/05-domains.md §events）。
+        host.audit.record('event-unsupported', { plugin: m.id, on: e.on, reason: 'EVENT_SOURCE_NOT_IN_BUS' });
+        continue;
+      }
+      const un = host.surfaces.subscribe(e.on, delta => {
+        if (e.filter && !matchFilter(e.filter, delta)) return;
+        const chosen = (awaitImpl(e.run));
+        host.audit.record('event-fire', { plugin: m.id, on: e.on, filter: e.filter || null });
+        if (chosen) host.impl.callImpl(plugin.dir, chosen, 'event', { delta }, { log: (...a) => host.log('[event]', ...a) });
+      });
+      plugin._surfaceUnsubs.push(un);
+    }
+    host.audit.record('load-events', { plugin: m.id, count: (m.events || []).filter(e => host.surfaces.streams.has(e.on)).length });
+
+    // 热加载就绪
+    if (m.hotReload?.enabled) host.hot.prepare(plugin);
+  } catch (e) {
+    rollbackCandidate(host, plugin);
+    throw e;
+  }
   host.audit.record('load-done', { plugin: m.id, version: m.version, privilege: m.capabilities.privilege });
   return plugin;
+}
+
+/** 装载失败的收尾：回滚候选已注册的流与订阅，不影响已装载插件 */
+function rollbackCandidate(host, plugin) {
+  plugin._surfaceUnsubs.forEach(f => { try { f(); } catch { /* 已尽力 */ } });
+  for (const s of plugin.manifest.surfaces || []) {
+    const st = host.surfaces.streams.get(s.uri);
+    if (st && st.plugin === plugin) host.surfaces.streams.delete(s.uri);
+  }
+  try { plugin.ui?.unmount(); } catch { /* 已记录 */ }
+  host.audit.record('load-aborted', { plugin: plugin.manifest.id });
 }
 
 function awaitImpl(impl) { return impl && impl.js ? { kind: 'js', via: 'js', path: impl.js } : null; }

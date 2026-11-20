@@ -424,8 +424,9 @@ export function runJs(file, args, ctx) {
   let hasRun = false;
   try {
     hasRun = vm.runInContext('(function(){' + code + '\n;if (typeof run === "function") globalThis.__axpRun = run; return typeof run === "function";})()', context, { timeout: 2000, filename: file });
-  } catch (e) {
-    return { ok: false, error: 'IMPL_ERROR', detail: 'definition failed: ' + String(e && e.message || e) };
+  } catch {
+    // 定义期异常（语法错误等）：固定诊断信息，不在宿主代码里触碰被抛出的 VM 值
+    return { ok: false, error: 'IMPL_ERROR', detail: 'definition failed: ' + file };
   }
   if (!hasRun) return { ok: false, error: 'IMPL_NO_RUN', detail: file };
   // 2) 安装序列化能力桥：宿主函数仅存于 VM 闭包

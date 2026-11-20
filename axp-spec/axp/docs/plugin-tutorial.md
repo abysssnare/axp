@@ -94,11 +94,14 @@ node validator/src/validate.mjs plugins/hello
 
 ```bash
 # 发布顺序（缺一不可颠倒）：
-# 0) 先拿到证书指纹（APK v3 签名证书的 SHA-256，64 位十六进制）并导出环境变量；
-#    以下命令任选其一 —— 没有就先 keytool -genkeypair 生成 keystore：
-#      keytool -list -v -keystore release.jks | grep SHA256 | head -1
-#      apksigner verify --print-certs hello.axp   # 对已签名包
-export FINGERPRINT=<把上面输出的 64 位十六进制填到这里>
+# 0) 先拿到证书指纹（APK v3 签名证书的 SHA-256，64 位十六进制）并导出环境变量。
+#    用 -alias 选定签名证书（与后面 apksigner sign 的 --ks-key-alias 用同一个别名，
+#    保证指纹与发布者对应同一把钥匙）；输出里的冒号要全部去掉：
+#      keytool -list -v -keystore release.jks -alias <你的别名> | grep SHA256
+#      # 例：SHA256: A1:B2:...:EF  →  FINGERPRINT=a1b2...ef（去冒号，64 位十六进制）
+export FINGERPRINT=<把去掉冒号后的 64 位十六进制填到这里>
+#    对已签名包核对手印（--min-sdk-version 免去对 AndroidManifest.xml 的依赖）：
+#      apksigner verify --min-sdk-version 26 --print-certs hello.axp
 # 1) 再把证书指纹填进源清单 —— 校验器要求 publisher 是 sha256:<64 位十六进制>
 #    （开发期可暂用 64 个 0 占位，但分发前 MUST 换成真实指纹）
 node -e "const f='plugins/hello/axp.json',m=require('./'+f);m.distribution.publisher='sha256:'+process.env.FINGERPRINT;require('fs').writeFileSync(f,JSON.stringify(m,null,2))"
@@ -106,7 +109,7 @@ node -e "const f='plugins/hello/axp.json',m=require('./'+f);m.distribution.publi
 node validator/src/validate.mjs plugins/hello
 node cli/bin/axp.mjs pack plugins/hello -o hello.axp
 # 3) 最后对产物做 APK v3 签名
-apksigner sign --v3-signing-enabled true --ks release.jks hello.axp
+apksigner sign --v3-signing-enabled true --ks release.jks --ks-key-alias <你的别名> hello.axp
 ```
 
 `.axp` 就是 zip。注意：指纹是**先填进 `axp.json` 再 pack**（打包内容包含清单），

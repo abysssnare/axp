@@ -8,6 +8,10 @@ export function run(args, ctx) {
   }
   var uri = 'axp://fs/' + String((args && args.path) || '');
   var snap = reader(uri);
-  var text = snap && typeof snap.text === 'string' ? snap.text : '';
+  if (snap === null || snap === undefined) {
+    // 该 URI 尚无快照：同样按「不可用」处理；快照存在但为空文本则是合法的 {text:''}
+    return { path: args && args.path, text: '', unavailable: true, reason: 'no snapshot published for ' + uri };
+  }
+  var text = typeof snap.text === 'string' ? snap.text : '';
   return { path: args && args.path, text: text };
 }
