@@ -147,7 +147,7 @@ class HotReloadAgent(
         m.surfaces.forEach { s -> s.impl?.candidates()?.forEach { add(it.second to "surfaces.${s.uri}") } }
         m.knowledge.forEach { add(it.entry to "knowledge.${it.id}") }
         m.agents.forEach { add(it.prompt to "agents.${it.id}") }
-        m.events.forEach { e -> e.run.candidates().forEach { add(it.second to "events.${e.on}|${e.filter ?: \"\"}") } }
+        m.events.forEach { e -> e.run.candidates().forEach { add(it.second to "events.${e.on}|${e.filter ?: ""}") } }
         m.ui?.let { ui ->
             ui.panel?.let { add(it.entry to "ui.panel") }
             ui.widget?.let { add(it.entry to "ui.widget") }

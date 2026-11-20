@@ -109,7 +109,7 @@ node -e "const f='plugins/hello/axp.json',m=require('./'+f);m.distribution.publi
 node validator/src/validate.mjs plugins/hello
 node cli/bin/axp.mjs pack plugins/hello -o hello.axp
 # 3) 最后对产物做 APK v3 签名
-apksigner sign --v3-signing-enabled true --ks release.jks --ks-key-alias <你的别名> hello.axp
+apksigner sign --v3-signing-enabled true --min-sdk-version 26 --ks release.jks --ks-key-alias <你的别名> hello.axp
 ```
 
 `.axp` 就是 zip。注意：指纹是**先填进 `axp.json` 再 pack**（打包内容包含清单），
