@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "AXP Working Group" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/axp-icon.svg",
   },
   openGraph: {
     title: "AXP v1.1.0 — 智能体扩展协议",
