@@ -95,7 +95,17 @@ export function SpecTab() {
           <BookOpen className="h-3.5 w-3.5" />
           规范目录
         </div>
-        <nav className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <select
+          aria-label="选择规范章节"
+          value={activeId}
+          onChange={(event) => setActiveId(event.target.value)}
+          className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 lg:hidden"
+        >
+          {SPEC_SECTIONS.map((section) => (
+            <option key={section.id} value={section.id}>§{section.no}　{section.title}</option>
+          ))}
+        </select>
+        <nav className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white lg:block">
           <div className="border-b border-zinc-100 bg-zinc-50/70 px-4 py-3">
             <div className="font-mono text-xs font-bold text-zinc-900">
               AXP / v{SPEC_META.version}
