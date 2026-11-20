@@ -74,7 +74,7 @@
 | code | 触发 | 宿主动作 | 定义 |
 |---|---|---|---|
 | `SURFACE_NOT_WATCHABLE` | bind/event 指向 `watchable:false` | 拒绝整包 | 05 / 17 |
-| `SURFACE_UNDECLARED` | `ctx.surface.publish` 的 uri 未声明 | 运行时拒绝 | 16 §3 |
+| `SURFACE_UNDECLARED` | `ctx.surface.publish` 的 uri 未声明；`ui.bind[].from` 未在本包 `surfaces[]` 声明 | 校验期拒绝整包 / 运行时拒绝 | 16 §3 / 01 §5.6 |
 | `UI_ACTION_TOOL_MISSING` | `ui.actions[].tool` 指向幽灵工具 | 拒绝整包 | 15 §4 |
 | `UI_BIND_TARGET_MISSING` | `ui.bind[].to` 节点不存在 / panel 解析失败 | 拒绝整包 | 15 §3 |
 | `DOMAIN_UNAVAILABLE` | 宿主未实现该域适配器 | 结构化返回，不静默 | 17 |

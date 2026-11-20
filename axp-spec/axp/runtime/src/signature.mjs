@@ -58,6 +58,24 @@ export class SignaturePolicy {
     if (oldM.axp !== newM.axp) return { ok: false, reason: 'HOT_FORMAT_VERSION_CHANGED' };
     return { ok: true, publisher: newPub, mode: this.mode };
   }
+  /**
+   * 回滚验签（spec/08 §3.4）：快照在成为活动版本前已通过完整前向验证并保留证据，
+   * 恢复时只校验发布者 / 身份 / 权限不扩大 —— 恢复旧组件集合是回滚的本意，
+   * 不复用前向「组件只减不增」子集检查（否则移除过组件的合法回滚会被拒）。
+   */
+  verifyRestore(currentM, snap) {
+    const curPub = currentM?.distribution?.publisher;
+    const snapPub = snap?.manifest?.distribution?.publisher;
+    const PRIV = { L0: 0, L1: 1, L2: 2, L3: 3, L4: 4, L5: 5 };
+    if (curPub !== snapPub) return { ok: false, reason: 'HOT_SIGNATURE_FAILED' };
+    if (currentM?.id !== snap?.manifest?.id) return { ok: false, reason: 'HOT_ID_CHANGED' };
+    if ((PRIV[snap.manifest.capabilities?.privilege] ?? 0) > (PRIV[currentM.capabilities?.privilege] ?? 0)) {
+      return { ok: false, reason: 'HOT_PRIVILEGE_ESCALATION' };
+    }
+    if (snap.manifest.axp !== currentM.axp) return { ok: false, reason: 'HOT_FORMAT_VERSION_CHANGED' };
+    if (snap.verified && snap.verified.ok === false) return { ok: false, reason: 'ROLLBACK_VERIFY_FAILED' };
+    return { ok: true, publisher: snapPub, mode: this.mode };
+  }
 }
 
 export function componentIds(m) {

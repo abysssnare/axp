@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { componentIds } from './signature.mjs';
 
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+
 export class HotReloadAgent {
   constructor(host) { this.host = host; this.snapshots = new Map(); }
 
@@ -28,6 +30,13 @@ export class HotReloadAgent {
     try { newM = JSON.parse(fs.readFileSync(path.join(newDir, 'axp.json'), 'utf8')); }
     catch (e) { return { ok: false, reason: 'MANIFEST_PARSE', phases }; }
 
+    // 新版本的回滚保留数必须非负整数：负值会让后续回滚历史被清空
+    const newKeep = newM.hotReload?.rollback?.keep;
+    if (newKeep !== undefined && (!Number.isInteger(newKeep) || newKeep < 0)) {
+      phase('REJECTED', { reason: 'HOT_ROLLBACK_KEEP_INVALID' });
+      return { ok: false, reason: 'HOT_ROLLBACK_KEEP_INVALID', phases };
+    }
+
     const v = this.host.signature.verifyReplace(plugin.manifest, newM);
     if (!v.ok) { phase('REJECTED', { reason: v.reason }); return { ok: false, reason: v.reason, phases }; }
     phase('VERIFIED', { mode: v.mode });
@@ -41,15 +50,11 @@ export class HotReloadAgent {
     if (outside.length) { phase('REJECTED', { reason: 'HOT_TARGET_MISMATCH', outside }); return { ok: false, reason: 'HOT_TARGET_MISMATCH', outside, phases }; }
 
     phase('STAGING');
-    const snap = { manifest: plugin.manifest, dir: plugin.dir, state: { ...(plugin.ui?.state || {}) }, at: Date.now() };
-    const hist = this.snapshots.get(plugin.id) || [];
-    hist.push(snap);
-    while (hist.length > (cfg.rollback?.keep ?? 2)) hist.shift();
-    this.snapshots.set(plugin.id, hist);
-
+    // 迁移与 onUnload 都在旧实现回收前；全部通过后才把快照入栈 ——
+    // 预交换阶段的失败不会留下面目全非的「幽灵快照」挤掉真正的恢复代。
     phase('MIGRATE');
     let state;
-    try { state = this.migrateState(snap.state, cfg, newDir); }
+    try { state = this.migrateState(plugin.ui?.state || {}, cfg, newDir); }
     catch (e) {
       phase('ROLLED_BACK', { reason: 'STATE_MIGRATE_FAILED' });
       return { ok: false, reason: 'STATE_MIGRATE_FAILED', phases };
@@ -63,6 +68,14 @@ export class HotReloadAgent {
       return { ok: false, reason: 'ONUNLOAD_FAILED', phases };
     }
 
+    // 验签证据随快照保留：回滚时确认这次替换当初是在验签通过下发生的
+    const snap = { manifest: plugin.manifest, dir: plugin.dir, state: { ...(plugin.ui?.state || {}) }, at: Date.now(), verified: v };
+    const hist = this.snapshots.get(plugin.id) || [];
+    hist.push(snap);
+    const keep = Number.isInteger(cfg.rollback?.keep) ? cfg.rollback.keep : 2;
+    while (hist.length > 0 && hist.length > keep) hist.shift();
+    this.snapshots.set(plugin.id, hist);
+
     phase('SWAPPING', { uiRebuild: cfg.uiRebuild });
     plugin.manifest = newM;
     plugin.dir = newDir;
@@ -74,7 +87,12 @@ export class HotReloadAgent {
       if (plugin.ui) { plugin.ui.mount(); plugin.ui.state = { ...state }; }
     } catch (e) { mountErr = e; }
     if (mountErr && cfg.rollback?.onError !== false) {
-      this.rollback(plugin, phases);
+      const rb = this.rollback(plugin, phases);
+      if (!rb.ok) {
+        // 回滚被拒：快照未消费，明确暴露「恢复失败」而不是假装回滚成功
+        phase('RECOVERY_FAILED', { reason: rb.reason });
+        return { ok: false, reason: 'UI_MOUNT_FAILED', recovery: rb.reason, phases };
+      }
       return { ok: false, reason: 'UI_MOUNT_FAILED', phases };
     }
 
@@ -83,7 +101,11 @@ export class HotReloadAgent {
       if (plugin.ui) plugin.ui.lifecycle('onReload', { oldState: snap.state, newState: state, changed });
     } catch (e) {
       if (cfg.rollback?.onError !== false) {
-        this.rollback(plugin, phases);
+        const rb = this.rollback(plugin, phases);
+        if (!rb.ok) {
+          phase('RECOVERY_FAILED', { reason: rb.reason });
+          return { ok: false, reason: 'ONRELOAD_FAILED', recovery: rb.reason, phases };
+        }
         return { ok: false, reason: 'ONRELOAD_FAILED', phases };
       }
     }
@@ -102,14 +124,23 @@ export class HotReloadAgent {
       const [kind, ...rest] = id.split(':');
       out.add((KIND2PREFIX[kind] || kind) + '.' + rest.join(':'));
     }
-    // 实现体内容变化 → 归属到组件前缀（热加载换的就是实现体，不算新增组件）
-    const refs = this.collectRefs(newM);
-    for (const r of refs) {
-      const oldF = path.join(this._oldDir || '', r);
-      const newF = path.join(newDir, r);
+    // 实现体内容变化 → 归属到具体组件 id（如 tools.ledger.ocr），
+    // 精确 targets（tools.ledger.ocr）与通配 targets（tools.*）都能命中
+    const oldRefs = new Map(this.collectRefs(oldM).map(r => [r.ref, r.comp]));
+    for (const { ref, comp } of this.collectRefs(newM)) {
+      const oldF = path.join(this._oldDir || '', ref);
+      const newF = path.join(newDir, ref);
       if (fs.existsSync(newF) && (!fs.existsSync(oldF) || fs.readFileSync(newF, 'utf8') !== fs.readFileSync(oldF, 'utf8'))) {
-        out.add(this.filePrefix(r));
+        out.add(comp || this.filePrefix(ref));
+      } else if (oldRefs.has(ref) && !fs.existsSync(newF)) {
+        // 实现文件被移除：同样是所属组件的变更
+        out.add(oldRefs.get(ref));
       }
+    }
+    // 旧有断无的引用（旧实现文件在新版中彻底消失）
+    for (const { ref, comp } of this.collectRefs(oldM)) {
+      const newF = path.join(newDir, ref);
+      if (!fs.existsSync(newF)) out.add(comp || this.filePrefix(ref));
     }
     return [...out];
   }
@@ -124,13 +155,35 @@ export class HotReloadAgent {
     return 'misc.' + rel;
   }
 
+  /** 引用 → 所属组件 id：tools/ocr.js → tools.ledger.ocr（精确 targets 可命中） */
   collectRefs(m) {
     const out = [];
-    for (const t of m.tools || []) { if (t.impl?.js) out.push(t.impl.js); for (const g of Object.values(t.gradient || {})) if (g?.impl?.js) out.push(g.impl.js); }
-    for (const k of m.knowledge || []) if (k.entry) out.push(k.entry);
-    if (m.ui?.panel?.entry) out.push(m.ui.panel.entry);
-    if (m.ui?.lifecycle) for (const v of Object.values(m.ui.lifecycle)) out.push(v);
-    if (m.hotReload?.state?.migrate) out.push(m.hotReload.state.migrate);
+    const add = (p, comp) => { if (typeof p === 'string' && p) out.push({ ref: p.split('#')[0], comp }); };
+    if (isObj(m.entry)) add(m.entry.js, 'entry');
+    for (const t of m.tools || []) {
+      if (isObj(t.impl)) for (const k of ['js', 'kotlin', 'native', 'wasm', 'bin']) if (typeof t.impl[k] === 'string') add(t.impl[k], 'tools.' + t.id);
+      for (const [layer, g] of Object.entries(t.gradient || {})) {
+        if (isObj(g?.impl)) for (const k of ['js', 'kotlin', 'native', 'wasm', 'bin']) if (typeof g.impl[k] === 'string') add(g.impl[k], 'tools.' + t.id);
+      }
+    }
+    for (const s of m.surfaces || []) {
+      if (isObj(s.impl)) for (const k of ['js', 'kotlin', 'native', 'wasm', 'bin']) if (typeof s.impl[k] === 'string') add(s.impl[k], 'surfaces.' + s.uri);
+    }
+    for (const k of m.knowledge || []) add(k.entry, 'knowledge.' + k.id);
+    for (const a of m.agents || []) add(a.prompt, 'agents.' + a.id);
+    for (const e of m.events || []) {
+      if (isObj(e.run)) for (const k of ['js', 'kotlin', 'native', 'wasm', 'bin']) if (typeof e.run[k] === 'string') add(e.run[k], 'events.' + e.on);
+    }
+    const ui = m.ui || {};
+    if (isObj(ui.panel)) add(ui.panel.entry, 'ui.panel');
+    if (isObj(ui.widget)) add(ui.widget.entry, 'ui.widget');
+    if (isObj(ui.web)) add(ui.web.entry, 'ui.web');
+    if (isObj(ui.activity)) add(ui.activity.entry, 'ui.activity');
+    for (const i of ui.inject || []) add(i.run, 'ui.inject');
+    if (isObj(ui.lifecycle)) {
+      for (const [cb, v] of Object.entries(ui.lifecycle)) add(v, 'ui.lifecycle.' + cb);
+    }
+    if (isObj(m.hotReload?.state)) add(m.hotReload.state.migrate, 'hotReload.state');
     return out;
   }
 
@@ -158,11 +211,17 @@ export class HotReloadAgent {
 
   rollback(plugin, phases = []) {
     const hist = this.snapshots.get(plugin.id) || [];
-    const snap = hist.pop();
+    const snap = hist[hist.length - 1];   // 先验证后弹出：被拒的回滚不丢快照
     if (!snap) return { ok: false, reason: 'NO_SNAPSHOT' };
-    // 回滚同样要验签（防降级攻击）
-    const v = this.host.signature.verifyReplace(plugin.manifest, snap.manifest);
-    if (!v.ok) { this.host.audit.record('hot-rollback-rejected', { plugin: plugin.id, reason: v.reason }); return { ok: false, reason: 'ROLLBACK_VERIFY_FAILED' }; }
+    // 回滚验签（防降级攻击）：快照在成为活动版本前已通过完整前向验证，
+    // 此处只校验发布者 / 身份 / 权限不扩大 —— 恢复旧组件集合是回滚的本意，
+    // 不复用前向「组件只减不增」子集检查（那会把合法回滚判成 HOT_NEW_COMPONENT）。
+    const v = this.host.signature.verifyRestore(plugin.manifest, snap);
+    if (!v.ok) {
+      this.host.audit.record('hot-rollback-rejected', { plugin: plugin.id, reason: v.reason });
+      return { ok: false, reason: 'ROLLBACK_VERIFY_FAILED' };
+    }
+    hist.pop();
     plugin.manifest = snap.manifest;
     plugin.dir = snap.dir;
     plugin.registry.swap(snap.manifest);

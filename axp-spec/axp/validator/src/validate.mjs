@@ -317,7 +317,8 @@ export function validate(dir) {
   }
   for (const b of ui.bind || []) {
     const s = surfaceMap.get(b.from);
-    if (s && !s.watchable) err('SURFACE_NOT_WATCHABLE', `bind source is not watchable: ${b.from}`, 'ui.bind[].from');
+    if (!s) err('SURFACE_UNDECLARED', `bind source not declared in surfaces: ${b.from}`, 'ui.bind[].from');
+    else if (!s.watchable) err('SURFACE_NOT_WATCHABLE', `bind source is not watchable: ${b.from}`, 'ui.bind[].from');
     if (panelNodeIds) {
       const parts = String(b.to).split('.');
       const node = parts[2];
@@ -357,7 +358,11 @@ export function validate(dir) {
 
 /* ---------------- CLI ---------------- */
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = (() => {
+  // 用 realpath 对比：经 axp-validate 符号链接调用时 argv[1] 与模块真实路径不同
+  const real = p => { try { return fs.realpathSync(p); } catch { return p; } };
+  return process.argv[1] && real(path.resolve(process.argv[1])) === real(fileURLToPath(import.meta.url));
+})();
 if (isMain) {
   const args = process.argv.slice(2);
   const dir = args.find(a => !a.startsWith('--'));

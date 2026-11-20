@@ -52,16 +52,21 @@ export function loadBundle(host, dir) {
   // 9 Surface 初始全量 + 事件/绑定订阅
   host.surfaces.prime(plugin);
   for (const e of m.events || []) {
-    if (!host.surfaces.streams.has(e.on)) continue;   // 生命周期事件不在 bus 内
+    if (!host.surfaces.streams.has(e.on)) {
+      // 生命周期事件（lifecycle/*）不在 bus 内：显式登记为不支持，不计入已装载事件，
+      // 生产宿主实现 dispatch 后再放开（spec/05-domains.md §events）。
+      host.audit.record('event-unsupported', { plugin: m.id, on: e.on, reason: 'EVENT_SOURCE_NOT_IN_BUS' });
+      continue;
+    }
     const un = host.surfaces.subscribe(e.on, delta => {
       if (e.filter && !matchFilter(e.filter, delta)) return;
       const chosen = (awaitImpl(e.run));
       host.audit.record('event-fire', { plugin: m.id, on: e.on, filter: e.filter || null });
-      if (chosen) host.impl.call(plugin.dir, chosen, 'event', { delta }, { log: (...a) => host.log('[event]', ...a) });
+      if (chosen) host.impl.callImpl(plugin.dir, chosen, 'event', { delta }, { log: (...a) => host.log('[event]', ...a) });
     });
     plugin._surfaceUnsubs.push(un);
   }
-  host.audit.record('load-events', { plugin: m.id, count: (m.events || []).length });
+  host.audit.record('load-events', { plugin: m.id, count: (m.events || []).filter(e => host.surfaces.streams.has(e.on)).length });
 
   // 热加载就绪
   if (m.hotReload?.enabled) host.hot.prepare(plugin);

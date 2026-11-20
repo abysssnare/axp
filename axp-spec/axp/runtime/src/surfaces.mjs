@@ -9,7 +9,16 @@ export class SurfaceBus {
   }
 
   register(plugin, def) {
-    this.streams.set(def.uri, { plugin, def, subs: new Set(), last: null, lastAt: 0 });
+    // 同一 URI 不允许跨插件静默覆盖：后装者会切断先装者的订阅与发布。
+    // 同一插件（热替换/重装载）重新注册是合法的，只刷新自己的流。
+    const existing = this.streams.get(def.uri);
+    if (existing && existing.plugin !== plugin) {
+      throw Object.assign(
+        new Error('SURFACE_URI_CONFLICT: ' + def.uri + ' already registered by ' + existing.plugin.manifest.id),
+        { code: 'SURFACE_URI_CONFLICT' },
+      );
+    }
+    this.streams.set(def.uri, { plugin, def, subs: existing && existing.plugin === plugin ? existing.subs : new Set(), last: existing?.last ?? null, lastAt: existing?.lastAt ?? 0 });
     this.host.audit.record('surface-register', { plugin: plugin.manifest.id, uri: def.uri, watchable: !!def.watchable });
   }
 

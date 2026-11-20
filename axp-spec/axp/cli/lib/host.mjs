@@ -102,10 +102,21 @@ function ok(v) { return { ok: true, ...v }; }
 
 /** spec/10 §3：十步安装 */
 export function install(target, opts = {}) {
+  let tmp = null;
+  try {
+    const r = installSteps(target, opts, t => { tmp = t; });
+    return r;
+  } finally {
+    // 解包临时目录无论成败都在用完后清理（Minor：避免 /tmp 残留）
+    if (tmp) { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* 已尽力 */ } }
+  }
+}
+
+function installSteps(target, opts, rememberTmp) {
   const h = ensureHome();
   const steps = [];
   const step = s => steps.push(s);
-  let srcDir = null, tmp = null, idxItem = null;
+  let srcDir = null, idxItem = null;
 
   // 1 解析目标
   if (target.includes('@') && opts.index) {
@@ -120,10 +131,11 @@ export function install(target, opts = {}) {
   }
   if (exists(target) && fs.statSync(target).isDirectory()) { srcDir = path.resolve(target); step('resolve-dir'); }
   else if (exists(target) && target.endsWith('.axp')) {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'axp-install-'));
-    const u = unpack(target, tmp);
+    const t = fs.mkdtempSync(path.join(os.tmpdir(), 'axp-install-'));
+    rememberTmp(t);
+    const u = unpack(target, t);
     if (!u.ok) return u;
-    srcDir = tmp; step('resolve-axp');
+    srcDir = t; step('resolve-axp');
   } else return fail('INSTALL_SOURCE_MISSING', target);
 
   // 2 解包防护
@@ -140,13 +152,24 @@ export function install(target, opts = {}) {
   const m = jread(path.join(srcDir, 'axp.json'));
   step('validate');
 
-  // 4 验签
+  // 4 验签（spec/18 §2：生产路径 fail-closed）
   if (exists(sigFile)) {
     const sig = jread(sigFile);
     if (sig.publisher !== m.distribution.publisher) return fail('INSTALL_PUBLISHER_MISMATCH', sig.publisher);
     if (sig.signatureScheme !== 'apk-v3') return fail('INSTALL_SIGNATURE_FAILED', sig.signatureScheme);
-    if (!opts.dev && !sig.signature) return fail('INSTALL_SIGNATURE_FAILED', 'missing signature');
-    step('verify-signature');
+    if (opts.dev) {
+      step('verify-signature-dev');
+    } else {
+      // 生产模式：本参考 CLI 未接入 apksig 公钥验签，不能把「signature 非空」
+      // 当作发布者身份证明 —— seal() 产出的 dev: 标记、自声明 certChain 一律拒绝，
+      // 由接入 apksig 的生产宿主或显式 --dev 承担开发安装。
+      const s = typeof sig.signature === 'string' ? sig.signature : '';
+      const hasChain = Array.isArray(sig.certChain) && sig.certChain.length > 0;
+      const detail = s.startsWith('dev:') ? 'dev signature requires --dev'
+        : (!s || !hasChain) ? 'missing signature / certChain'
+        : 'reference CLI host cannot verify apk-v3 signatures; use a production host with apksig or --dev for dev-signed packages';
+      return fail('INSTALL_SIGNATURE_FAILED', detail);
+    }
   } else if (!opts.dev) {
     // 开发/示例包允许无签名块，但必须显式 --dev；生产宿主 MUST 拒绝
     return fail('INSTALL_SIGNATURE_FAILED', 'AXP-SIG.json missing (use --dev for examples)');
@@ -174,36 +197,55 @@ export function install(target, opts = {}) {
   }
   step('resolve-deps');
 
-  // 8 写注册表
+  // 8 写注册表（先完整暂存，再原子切换：更新失败时旧版本保持可用 —— spec/10 §3）
   if (entry(m.id) && !opts.force) return fail('INSTALL_ALREADY_PRESENT', m.id);
   const dest = path.join(h, 'plugins', m.id);
-  if (exists(dest)) fs.rmSync(dest, { recursive: true, force: true });
-  fs.mkdirSync(dest, { recursive: true });
-  fs.cpSync(srcDir, dest, { recursive: true });
-  const reg = registry();
-  const rec = {
-    id: m.id, version: m.version, path: path.relative(h, dest).split(path.sep).join('/'),
-    publisher: m.distribution.publisher, sha256: sha(fs.readFileSync(path.join(dest, 'axp.json'))),
-    enabled: true, installedAt: new Date().toISOString(),
-    privilege: m.capabilities.privilege, requests: m.capabilities.requests || [],
-    ui: !!m.ui && Object.keys(m.ui).length > 0,
-    tools: (m.tools || []).map(t => t.id),
-  };
-  reg.plugins = reg.plugins.filter(p => p.id !== m.id).concat(rec);
-  saveRegistry(reg);
-  step('write-registry');
+  const staging = path.join(h, 'plugins', '.' + m.id + '.staging-' + Date.now());
+  let backup = null;
+  try {
+    fs.mkdirSync(staging, { recursive: true });
+    fs.cpSync(srcDir, staging, { recursive: true });
+    // 暂存副本完整性自检：清单可读、摘要一致
+    JSON.parse(fs.readFileSync(path.join(staging, 'axp.json'), 'utf8'));
+    if (exists(sigFile) && jread(sigFile).digest !== digestDir(staging)) return fail('INSTALL_DIGEST_MISMATCH', 'staged copy');
+    const rec = {
+      id: m.id, version: m.version, path: path.relative(h, dest).split(path.sep).join('/'),
+      publisher: m.distribution.publisher, sha256: sha(fs.readFileSync(path.join(staging, 'axp.json'))),
+      enabled: true, installedAt: new Date().toISOString(),
+      privilege: m.capabilities.privilege, requests: m.capabilities.requests || [],
+      ui: !!m.ui && Object.keys(m.ui).length > 0,
+      tools: (m.tools || []).map(t => t.id),
+    };
 
-  // 9 宿主投递
-  jwrite(path.join(h, 'inbox', m.id + '.install-intent.json'), {
-    intent: 'axp.session-install/1.0', id: m.id, version: m.version,
-    source: dest, sha256: rec.sha256, publisher: rec.publisher,
-    requestedPrivilege: rec.privilege, requests: rec.requests, createdAt: rec.installedAt,
-  });
-  step('session-install-intent');
+    // 9 宿主投递（intent 先落盘，注册表发布是提交点；失败时活动版本不动）
+    jwrite(path.join(h, 'inbox', m.id + '.install-intent.json'), {
+      intent: 'axp.session-install/1.0', id: m.id, version: m.version,
+      source: dest, sha256: rec.sha256, publisher: rec.publisher,
+      requestedPrivilege: rec.privilege, requests: rec.requests, createdAt: rec.installedAt,
+    });
 
-  // 10 输出
-  return ok({ id: m.id, version: m.version, path: dest, privilege: rec.privilege,
-              tools: rec.tools, ui: rec.ui, confirmList, steps });
+    if (exists(dest)) { backup = dest + '.old-' + Date.now(); fs.renameSync(dest, backup); }
+    try { fs.renameSync(staging, dest); }
+    catch (e) {
+      // 切换失败：恢复旧代，活动版本不受影响
+      if (backup && !exists(dest)) { try { fs.renameSync(backup, dest); backup = null; } catch { /* 保住备份目录 */ } }
+      throw e;
+    }
+    const reg = registry();
+    reg.plugins = reg.plugins.filter(p => p.id !== m.id).concat(rec);
+    saveRegistry(reg);
+    step('write-registry');
+    step('session-install-intent');
+    if (backup) { try { fs.rmSync(backup, { recursive: true, force: true }); } catch { /* 旧代清理失败不影响安装结果 */ } }
+
+    // 10 输出
+    return ok({ id: m.id, version: m.version, path: dest, privilege: rec.privilege,
+                tools: rec.tools, ui: rec.ui, confirmList, steps });
+  } catch (e) {
+    // 暂存/切换失败：清理暂存目录，旧版本原样保留
+    try { if (!exists(dest)) fs.rmSync(staging, { recursive: true, force: true }); } catch { /* 已尽力 */ }
+    return fail('IO_FAILED', e.message);
+  }
 }
 
 export function uninstall(id) {
@@ -307,13 +349,94 @@ function makeCtx(p, m, opts) {
   };
 }
 
+/**
+ * 在 vm 沙箱里执行 impl.js —— 边界模型（spec/18 §3）：
+ * 1. 沙箱只含 VM 原生全局，不注入任何宿主 realm 的对象 / 构造器；
+ * 2. 宿主能力（storage/surface/audit/ui/agent/elicit）经「序列化消息桥」进出：
+ *    宿主函数只存在于 VM 闭包内，跨 realm 数据一律 JSON 字符串往返；
+ * 3. 工具调用本身在 vm.runInContext 的 timeout 之内，非返回型实现不会挂起宿主。
+ * 注意：node:vm 不是权限边界（Node 官方立场），生产宿主应使用独立进程 / isolate。
+ */
+function hostDispatch(ctx) {
+  return (op, arr) => {
+    switch (op) {
+      case 'storage.get': return ctx.storage.get(arr[0]);
+      case 'storage.put': return ctx.storage.put(arr[0], arr[1]);
+      case 'storage.list': return ctx.storage.list();
+      case 'storage.remove': return ctx.storage.remove(arr[0]);
+      case 'surface.publish': return ctx.surface.publish(arr[0], arr[1]);
+      case 'surface.read': return ctx.surface.read(arr[0]);
+      case 'audit.log': return ctx.audit.log(arr[0]);
+      case 'ui.push': return ctx.ui.push(arr[0], arr[1]);
+      case 'agent.request': return ctx.agent.request(arr[0]);
+      case 'elicit': return ctx.elicit(arr[0]);
+      default: throw new Error('CTX_OP_UNKNOWN: ' + op);
+    }
+  };
+}
+
+const BRIDGE_SRC = `
+globalThis.__axpInstall = function (hd, confirmFlag) {
+  function call(op, arg) {
+    var resp = hd(op, JSON.stringify(arg));
+    if (!resp || resp.ok !== true) {
+      var msg = (resp && resp.err) ? String(resp.err) : 'IMPL_ERROR';
+      var e = new Error(msg); e.code = msg; throw e;
+    }
+    return resp.json === undefined ? undefined : JSON.parse(resp.json);
+  }
+  globalThis.__axpCtx = {
+    storage: {
+      get: function (k) { return call('storage.get', [k]); },
+      put: function (k, v) { return call('storage.put', [k, v]); },
+      list: function () { return call('storage.list', []); },
+      remove: function (k) { return call('storage.remove', [k]); },
+    },
+    surface: {
+      publish: function (u, d) { return call('surface.publish', [u, d]); },
+      read: function (u) { return call('surface.read', [u]); },
+    },
+    audit: { log: function (e) { return call('audit.log', [e]); } },
+    ui: { push: function (n, v) { return call('ui.push', [n, v]); } },
+    agent: { request: function (p) { return call('agent.request', [p]); } },
+    elicit: function (s) { return call('elicit', [s]); },
+    confirm: confirmFlag === true,
+  };
+};
+globalThis.__axpCall = function () {
+  var args = JSON.parse(globalThis.__axpArgsJson);
+  var r = globalThis.__axpRun(args, globalThis.__axpCtx);
+  return JSON.stringify({ ok: true, result: r === undefined ? null : r });
+};
+`;
+
 /** 在 vm 沙箱里执行 impl.js；只允许 run(args, ctx) */
 export function runJs(file, args, ctx) {
   let code = fs.readFileSync(file, 'utf8').replace(/^\s*export\s+/gm, '');
-  const fn = vm.runInNewContext('(function(){' + code + '\n;return typeof run==="function"?run:null;})()', Object.create(null), { timeout: 2000 });
-  if (!fn) return { ok: false, error: 'IMPL_NO_RUN', detail: file };
-  try { return { ok: true, result: fn(args, ctx) }; }
-  catch (e) { return { ok: false, error: /STORAGE_DENIED|SURFACE_UNDECLARED/.test(e.message) ? e.message : 'IMPL_ERROR', detail: e.message }; }
+  const sandbox = Object.create(null);
+  const context = vm.createContext(sandbox);
+  // 1) 插件源码在 VM realm 定义 run（定义阶段即受 timeout 约束）
+  const hasRun = vm.runInContext('(function(){' + code + '\n;if (typeof run === "function") globalThis.__axpRun = run; return typeof run === "function";})()', context, { timeout: 2000, filename: file });
+  if (!hasRun) return { ok: false, error: 'IMPL_NO_RUN', detail: file };
+  // 2) 安装序列化能力桥：宿主函数仅存于 VM 闭包
+  vm.runInContext(BRIDGE_SRC, context, { timeout: 200 });
+  const dispatch = hostDispatch(ctx);
+  sandbox.__axpInstall((op, argsJson) => {
+    try {
+      const v = dispatch(op, JSON.parse(argsJson));
+      return { ok: true, json: JSON.stringify(v === undefined ? null : v) };
+    } catch (e) { return { ok: false, err: String(e && e.message || e) }; }
+  }, ctx.confirm);
+  // 3) 调用阶段同样在 timeout 内：非返回型工具被终止而非挂起
+  sandbox.__axpArgsJson = JSON.stringify(args === undefined ? {} : args);
+  try {
+    const out = vm.runInContext('__axpCall()', context, { timeout: 2000 });
+    const parsed = JSON.parse(out);
+    return { ok: true, result: parsed.result };
+  } catch (e) {
+    const msg = String(e && e.message || e);
+    return { ok: false, error: /STORAGE_DENIED|SURFACE_UNDECLARED/.test(msg) ? msg : 'IMPL_ERROR', detail: msg };
+  }
 }
 
 /** spec/11 §3-§5：调用一个工具 */

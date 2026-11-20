@@ -30,7 +30,7 @@ function cmdNew(id, o) {
     distribution: { channel: 'session-install', publisher: 'sha256:' + '0'.repeat(64), signatureScheme: 'apk-v3' } };
   fs.writeFileSync(path.join(dir, 'axp.json'), JSON.stringify(m, null, 2) + '\n');
   fs.writeFileSync(path.join(dir, 'tools/hello.js'), 'export function run(args) { return { text: args.text, at: Date.now() }; }\n');
-  fs.writeFileSync(path.join(dir, 'README.md'), '# ' + id + '\n\nAXP v1.0 plugin. `axp validate .` / `axp install .`\n');
+  fs.writeFileSync(path.join(dir, 'README.md'), '# ' + id + '\n\nAXP v1.0 plugin. `axp validate .` / `axp install . --dev`\n');
   out('created ' + dir);
 }
 function cmdValidate(d) {

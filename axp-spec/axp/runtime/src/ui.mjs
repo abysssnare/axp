@@ -48,7 +48,8 @@ export class UiRuntime {
 
   /** UI 动作 → 本包工具 */
   action(id, args = {}, opts = {}) {
-    const a = (this.ui.actions || []).find(x => x.id === id);
+    if (!this.ui || !Array.isArray(this.ui.actions)) return { error: 'UI_ACTION_NOT_FOUND', id };
+    const a = this.ui.actions.find(x => x.id === id);
     if (!a) return { error: 'UI_ACTION_NOT_FOUND', id };
     return this.plugin.registry.invoke(a.tool, args, opts);
   }

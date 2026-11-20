@@ -1,4 +1,6 @@
 /** AXP Reference Runtime — 主入口。声明等级 AXP-3。 */
+import fs from 'node:fs';
+import path from 'node:path';
 import { AuditLog } from './audit.mjs';
 import { SignaturePolicy } from './signature.mjs';
 import { SurfaceBus } from './surfaces.mjs';
@@ -25,7 +27,19 @@ export class AxpHost {
 
   /** 装载：9 步，任一步失败整包拒绝，不部分注册 */
   load(dir) {
+    // 重复装载检查必须在 loadBundle 之前：流水线会注册 surfaces / 订阅事件，
+    // 事后拒绝会留下半注册状态。静默覆盖则会丢掉旧插件的订阅与归属关系；
+    // 显式替换请走 unload() + load() 或热替换 applyHotReplace()。
+    const abs = path.resolve(dir);
+    let dupId = null;
+    try { dupId = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')).id; } catch { /* 解析失败交给 loadBundle 报具体错误 */ }
+    if (dupId && this.plugins.has(dupId)) {
+      throw Object.assign(new Error('PLUGIN_ALREADY_LOADED: ' + dupId + ' (unload first or use hot replace)'), { code: 'PLUGIN_ALREADY_LOADED' });
+    }
     const p = loadBundle(this, dir);
+    if (this.plugins.has(p.id)) {
+      throw Object.assign(new Error('PLUGIN_ALREADY_LOADED: ' + p.id), { code: 'PLUGIN_ALREADY_LOADED' });
+    }
     this.plugins.set(p.id, p);
     return p;
   }
