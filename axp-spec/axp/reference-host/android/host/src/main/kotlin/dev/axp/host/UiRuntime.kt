@@ -15,6 +15,15 @@ class UiRuntime(
 
     fun onLoad() {
         // 1. 数据绑定：Surface 流 → 节点
+        bindSurfaces()
+        // 2. 动作引用校验
+        checkActions()
+        // 3. 生命周期
+        plugin.manifest.ui?.lifecycle?.onLoad?.let { callHook(it, mapOf("state" to state)) }
+    }
+
+    /** Surface 订阅（可重复调用）：onLoad 与 onReload 重建界面后各自调用 */
+    private fun bindSurfaces() {
         for (b in plugin.manifest.ui?.bind.orEmpty()) {
             require(panel.nodes.containsKey(b.to.substringAfter("ui.panel.").substringBefore("."))) {
                 "UI_BIND_TARGET_MISSING: ${b.to}"
@@ -22,15 +31,16 @@ class UiRuntime(
             val close = bridge.surface(b.from).collect { delta -> plugin.uiHandle?.update(b.to, delta) }
             plugin.surfaceCloses += close
         }
-        // 2. 动作引用校验
+    }
+
+    /** ui.actions[].tool 引用校验（可重复调用） */
+    private fun checkActions() {
         for (a in plugin.manifest.ui?.actions.orEmpty()) {
             require(plugin.registry.tool(a.tool) != null) { "UI_ACTION_TOOL_MISSING: ${a.tool}" }
         }
-        // 3. 生命周期
-        plugin.manifest.ui?.lifecycle?.onLoad?.let { callHook(it, mapOf("state" to state)) }
     }
 
-    /** 顺序固定：state.migrate → onUnload → 组件换 → uiRebuild → onReload → 可见 */
+    /** 顺序固定：state.migrate（HotReloadAgent STAGING 已完成）→ onUnload → 组件换 → uiRebuild → onReload → 可见 */
     fun onUnload(oldState: Map<String, Any?>): Map<String, Any?> {
         plugin.manifest.ui?.lifecycle?.onUnload?.let { callHook(it, mapOf("state" to oldState)) }
         plugin.surfaceCloses.forEach { runCatching { it.close() } }
@@ -38,15 +48,20 @@ class UiRuntime(
         return oldState
     }
 
+    /**
+     * 重建后恢复：状态回填 + 重建 Surface 绑定（onUnload 已关闭旧订阅，
+     * 不重建则后续 Surface delta 不再更新面板）+ 重跑动作引用校验；
+     * 不重跑初始 onLoad 钩子（那是首次装载专属）。
+     * 迁移由 HotReloadAgent 在 STAGING 阶段完成并经 newState 传入。
+     */
     fun onReload(oldState: Map<String, Any?>, newState: Map<String, Any?>, changed: List<String>) {
-        val cfg = plugin.manifest.hotReload
-        val migrated = StateMigrator.migrate(plugin.dir, cfg?.state, oldState)
-        state.clear(); state.putAll(migrated); state.putAll(newState)
-        when (cfg?.uiRebuild) {
-            "recreate-activity" -> plugin.uiHandle?.recompose(panel, state)  // 宿主应重建 Activity
+        state.clear(); state.putAll(newState)
+        when (plugin.manifest.hotReload?.uiRebuild) {
             "restart-host" -> Unit                                            // 宿主应走 next-session
-            else -> plugin.uiHandle?.recompose(panel, state)                  // recompose
+            else -> plugin.uiHandle?.recompose(panel, state)                  // recompose / recreate-activity
         }
+        bindSurfaces()
+        checkActions()
         plugin.manifest.ui?.lifecycle?.onReload?.let {
             callHook(it, mapOf("oldState" to oldState, "newState" to state, "changed" to changed))
         }

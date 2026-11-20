@@ -31,6 +31,7 @@ node runtime/test/smoke.mjs
 
 # 2. 再打开真机骨架（需自备 Android Studio / JDK 17）
 cd reference-host/android
+gradle wrapper                          # 骨架未带 gradlew，先在装好 Gradle 的机器上生成 wrapper
 ./gradlew :host:testDebugUnitTest      # 纯逻辑单元测试，不依赖设备
 ```
 

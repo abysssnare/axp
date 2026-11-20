@@ -135,7 +135,55 @@ class ComponentRegistry(private val m: AxpManifest, private val bridge: HostBrid
 /** 生产宿主应直接跑 spec/02-manifest.schema.json；此处为接口占位 */
 class ManifestValidator {
     data class Issue(val code: String, val message: String)
-    fun validate(m: AxpManifest, dir: File): List<Issue> = emptyList()
+
+    /** 结构 / 引用检查（装载流水线第 2 步）：重复组件 id、实现文件缺失、越界路径 */
+    fun validate(m: AxpManifest, dir: File): List<Issue> {
+        val issues = mutableListOf<Issue>()
+
+        // 重复组件 id（DUP_ID）
+        listOf(
+            "tool" to m.tools.map { it.id },
+            "surface" to m.surfaces.map { it.uri },
+            "knowledge" to m.knowledge.map { it.id },
+            "agent" to m.agents.map { it.id },
+        ).forEach { (kind, ids) ->
+            ids.groupBy { it }.filterValues { it.size > 1 }.keys.forEach {
+                issues += Issue("DUP_ID", "duplicate $kind id: $it")
+            }
+        }
+
+        // 引用完整性（IMPL_FILE_MISSING / UNSAFE_PATH）
+        val refs = buildList {
+            m.entry?.let { add(it.js) }
+            m.tools.forEach { t ->
+                t.impl?.let { addAll(it.candidates().map { p -> p.second }) }
+                t.gradient.values.forEach { g -> addAll(g.impl.candidates().map { p -> p.second }) }
+            }
+            m.surfaces.forEach { s -> s.impl?.let { addAll(it.candidates().map { p -> p.second }) } }
+            m.knowledge.forEach { add(it.entry) }
+            m.agents.forEach { add(it.prompt) }
+            m.events.forEach { e -> addAll(e.run.candidates().map { p -> p.second }) }
+            m.ui?.let { ui ->
+                listOfNotNull(ui.panel, ui.widget, ui.web, ui.activity).forEach { add(it.entry) }
+                ui.inject.forEach { add(it.run) }
+                listOfNotNull(ui.lifecycle?.onLoad, ui.lifecycle?.onReload, ui.lifecycle?.onUnload).forEach { add(it) }
+            }
+            m.hotReload?.state?.migrate?.let { add(it) }
+        }
+        for (r in refs) {
+            when {
+                r.contains("..") || r.startsWith("/") -> issues += Issue("UNSAFE_PATH", r)
+                !File(dir, r.substringBefore('#')).exists() -> issues += Issue("IMPL_FILE_MISSING", r)
+            }
+        }
+
+        // UI 引用：actions[].tool 必须存在（UI_ACTION_TOOL_MISSING）
+        val toolIds = m.tools.map { it.id }.toSet()
+        m.ui?.actions?.forEach { a ->
+            if (a.tool !in toolIds) issues += Issue("UI_ACTION_TOOL_MISSING", a.tool)
+        }
+        return issues
+    }
 }
 
 object UiParser {
