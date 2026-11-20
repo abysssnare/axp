@@ -115,7 +115,13 @@ class HotReloadAgent(
         if (oldM.surfaces != newM.surfaces) out += "surfaces.*"
         if (oldM.knowledge != newM.knowledge) out += "knowledge.*"
         if (oldM.agents != newM.agents) out += "agents.*"
-        if (oldM.events != newM.events) out += "events.*"
+        // 事件按身份（on|filter）逐个比较：处理器引用变化报告该事件的精确 target，
+        // 与 tools 的报告方式一致 —— 笼统 events.* 会让精确 targets 匹配失败
+        val oldEvents = oldM.events.associateBy { "${it.on}|${it.filter ?: ""}" }
+        for (e in newM.events) {
+            val o = oldEvents["${e.on}|${e.filter ?: ""}"]
+            if (o == null || o != e) out += "events.${e.on}|${e.filter ?: ""}"
+        }
         if (oldM.ui != newM.ui) out += "ui.*"
         // 实现文件内容变化（同一引用在两代目录中的字节不同）→ 归属到具体组件 id
         for ((r, comp) in collectRefs(newM)) {
