@@ -27,17 +27,23 @@ export class AxpHost {
 
   /** 装载：9 步，任一步失败整包拒绝，不部分注册 */
   load(dir) {
-    // 重复装载检查必须在 loadBundle 之前：流水线会注册 surfaces / 订阅事件，
-    // 事后拒绝会留下半注册状态。静默覆盖则会丢掉旧插件的订阅与归属关系；
-    // 显式替换请走 unload() + load() 或热替换 applyHotReplace()。
+    // 重复装载检查必须在任何注册副作用之前，且与 loadBundle 复用同一份解析结果：
+    // 双读清单之间存在竞态窗口，事后拒绝会留下已注册的 surfaces / UI / 事件订阅。
     const abs = path.resolve(dir);
-    let dupId = null;
-    try { dupId = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')).id; } catch { /* 解析失败交给 loadBundle 报具体错误 */ }
-    if (dupId && this.plugins.has(dupId)) {
-      throw Object.assign(new Error('PLUGIN_ALREADY_LOADED: ' + dupId + ' (unload first or use hot replace)'), { code: 'PLUGIN_ALREADY_LOADED' });
+    let m = null;
+    try { m = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')); } catch { /* 解析失败交给 loadBundle 报具体错误 */ }
+    if (m && this.plugins.has(m.id)) {
+      throw Object.assign(new Error('PLUGIN_ALREADY_LOADED: ' + m.id + ' (unload first or use hot replace)'), { code: 'PLUGIN_ALREADY_LOADED' });
     }
-    const p = loadBundle(this, dir);
+    const p = loadBundle(this, dir, m);
     if (this.plugins.has(p.id)) {
+      // 防御性兜底：清单在装载途中被换掉时，回滚本次的全部副作用再拒绝
+      p._surfaceUnsubs.forEach(f => { try { f(); } catch { /* 已尽力 */ } });
+      for (const def of p.manifest.surfaces || []) {
+        const s = this.surfaces.streams.get(def.uri);
+        if (s && s.plugin === p) this.surfaces.streams.delete(def.uri);
+      }
+      try { p.ui?.unmount(); } catch { /* 已记录 */ }
       throw Object.assign(new Error('PLUGIN_ALREADY_LOADED: ' + p.id), { code: 'PLUGIN_ALREADY_LOADED' });
     }
     this.plugins.set(p.id, p);

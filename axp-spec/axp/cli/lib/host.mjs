@@ -236,15 +236,19 @@ function installSteps(target, opts, rememberTmp) {
     saveRegistry(reg);
     step('write-registry');
     step('session-install-intent');
-    if (backup) { try { fs.rmSync(backup, { recursive: true, force: true }); } catch { /* 旧代清理失败不影响安装结果 */ } }
 
     // 10 输出
     return ok({ id: m.id, version: m.version, path: dest, privilege: rec.privilege,
                 tools: rec.tools, ui: rec.ui, confirmList, steps });
   } catch (e) {
-    // 暂存/切换失败：清理暂存目录，旧版本原样保留
-    try { if (!exists(dest)) fs.rmSync(staging, { recursive: true, force: true }); } catch { /* 已尽力 */ }
+    // 暂存/切换失败：旧版本原样保留
     return fail('IO_FAILED', e.message);
+  } finally {
+    // 每条退出路径都清理残留：复制中断 / 摘要不匹配 / 注册表写失败。
+    // rename 成功后 staging 路径已不存在，rmSync 不影响活动包；
+    // backup 只在活动版本已就位（dest 存在）时才清理——恢复失败时它是唯一的旧代副本。
+    if (backup && exists(dest)) { try { fs.rmSync(backup, { recursive: true, force: true }); } catch { /* 旧代清理失败不影响安装结果 */ } }
+    try { if (exists(staging)) fs.rmSync(staging, { recursive: true, force: true }); } catch { /* 已尽力 */ }
   }
 }
 
@@ -415,8 +419,14 @@ export function runJs(file, args, ctx) {
   let code = fs.readFileSync(file, 'utf8').replace(/^\s*export\s+/gm, '');
   const sandbox = Object.create(null);
   const context = vm.createContext(sandbox);
-  // 1) 插件源码在 VM realm 定义 run（定义阶段即受 timeout 约束）
-  const hasRun = vm.runInContext('(function(){' + code + '\n;if (typeof run === "function") globalThis.__axpRun = run; return typeof run === "function";})()', context, { timeout: 2000, filename: file });
+  // 1) 插件源码在 VM realm 定义 run（定义阶段即受 timeout 约束；
+  //    语法错误等定义期异常统一报 IMPL_ERROR，不外溢到 invoke）
+  let hasRun = false;
+  try {
+    hasRun = vm.runInContext('(function(){' + code + '\n;if (typeof run === "function") globalThis.__axpRun = run; return typeof run === "function";})()', context, { timeout: 2000, filename: file });
+  } catch (e) {
+    return { ok: false, error: 'IMPL_ERROR', detail: 'definition failed: ' + String(e && e.message || e) };
+  }
   if (!hasRun) return { ok: false, error: 'IMPL_NO_RUN', detail: file };
   // 2) 安装序列化能力桥：宿主函数仅存于 VM 闭包
   vm.runInContext(BRIDGE_SRC, context, { timeout: 200 });

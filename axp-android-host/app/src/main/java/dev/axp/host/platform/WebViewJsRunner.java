@@ -38,6 +38,7 @@ public final class WebViewJsRunner implements JsRunner {
     private final HandlerThread jsThread;
     private final Handler jsHandler;
     private final WebView web;
+    private volatile boolean closed = false;   // destroy 后拒绝新调用，不再等 JS_TIMEOUT
 
     public WebViewJsRunner(Context ctx) {
         jsThread = new HandlerThread("axp-js-runner");
@@ -59,26 +60,43 @@ public final class WebViewJsRunner implements JsRunner {
         if (web == null) throw new IllegalStateException("WebView creation timed out on js thread");
     }
 
-    /** 宿主不再使用时释放 js 线程 */
-    public void destroy() { jsHandler.post(new Runnable() { @Override public void run() { web.destroy(); } }); jsThread.quitSafely(); }
+    /** 宿主不再使用时释放 js 线程；进行中的 run 会因 post 失败/线程退出而尽快失败 */
+    public void destroy() {
+        closed = true;
+        jsHandler.post(new Runnable() { @Override public void run() { web.destroy(); } });
+        jsThread.quitSafely();
+    }
 
     @Override public String run(final String source, final String argsJson, final HostContext ctx, final String entry) throws Exception {
+        if (closed) throw new IllegalStateException("WebViewJsRunner is destroyed");
+        if (web == null) throw new IllegalStateException("runner destroyed");
         if (Thread.currentThread() == jsThread) {
             throw new IllegalStateException("WebViewJsRunner.run must be called from a host worker thread, not the js thread itself");
         }
-        if (web == null) throw new IllegalStateException("runner destroyed");
         final CountDownLatch latch = new CountDownLatch(1);
         final String[] result = new String[1];
+        final Throwable[] failure = new Throwable[1];
         final String script = JsRunner.wrapper(source, argsJson, entry);
-        jsHandler.post(new Runnable() {
+        Runnable task = new Runnable() {
             @Override public void run() {
-                web.addJavascriptInterface(new Bridge(ctx), "ctx");
-                web.evaluateJavascript(script, new ValueCallback<String>() {
-                    @Override public void onReceiveValue(String value) { result[0] = value; latch.countDown(); }
-                });
+                try {
+                    web.addJavascriptInterface(new Bridge(ctx), "ctx");
+                    web.evaluateJavascript(script, new ValueCallback<String>() {
+                        @Override public void onReceiveValue(String value) { result[0] = value; latch.countDown(); }
+                    });
+                } catch (Throwable t) {
+                    // 求值提交失败也要释放等待方，不能让它等到超时
+                    failure[0] = t;
+                    latch.countDown();
+                }
             }
-        });
+        };
+        if (!jsHandler.post(task)) {
+            // 线程已退出（destroy 与 run 竞态）：立即失败
+            throw new IllegalStateException("js thread is not running (runner destroyed?)");
+        }
         if (!latch.await(10, TimeUnit.SECONDS)) throw new Exception("JS_TIMEOUT");
+        if (failure[0] != null) throw new Exception("JS_SUBMIT_FAILED: " + failure[0].getMessage());
         String v = result[0];
         if (v == null || v.equals("null") || v.equals("undefined")) return "null";
         // evaluateJavascript 会把字符串结果再 JSON-quote 一层

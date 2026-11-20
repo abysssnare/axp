@@ -7,15 +7,17 @@ export class LoadError extends Error {
   constructor(step, code, msg) { super(`[step ${step}] ${code}: ${msg}`); this.step = step; this.code = code; }
 }
 
-export function loadBundle(host, dir) {
+export function loadBundle(host, dir, preM) {
   const abs = path.resolve(dir);
   const step = (n, code, msg) => { throw new LoadError(n, code, msg); };
 
   // 1 解析 + 2 结构校验（复用离线校验器：schema/引用/abis/权限/UI/热加载策略一次跑完）
   if (!fs.existsSync(path.join(abs, 'axp.json'))) step(1, 'MANIFEST_MISSING', 'axp.json not found');
-  let m;
-  try { m = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')); }
-  catch (e) { step(1, 'MANIFEST_PARSE', e.message); }
+  let m = preM;   // 宿主已预解析时直接复用，避免双读窗口
+  if (!m) {
+    try { m = JSON.parse(fs.readFileSync(path.join(abs, 'axp.json'), 'utf8')); }
+    catch (e) { step(1, 'MANIFEST_PARSE', e.message); }
+  }
   const r = validate(abs);
   if (!r.ok) {
     const e = r.errors[0];

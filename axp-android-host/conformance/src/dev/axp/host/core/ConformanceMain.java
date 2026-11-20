@@ -169,7 +169,19 @@ public final class ConformanceMain {
         });
         c("C24", "AXP-3", () -> ok(AxpHost.digestDir(new File(fix,"01-hello")).length() == 64, "sha256 hex"));
         c("C25", "AXP-3", () -> ok(AxpHost.satisfies("1.0.0", ">=1.0.0 <2.0.0"), "AND range"));
-        c("C26", "AXP-3", () -> ok(Boolean.TRUE.equals(h.uninstall("com.example.nostore").get("ok")), "uninstall result must be ok:true"));
+        c("C26", "AXP-3", () -> {
+            // spec/12 C26 = INSTALL_REVOKED：吊销清单命中 → 拒绝安装（Node 侧同表）
+            String pub = "sha256:" + new String(new char[64]).replace('\0', '0');
+            File idx = new File(home, "index.json");
+            AxpHost.write(idx, java.util.Collections.singletonMap("revoked",
+                Arrays.asList(M("publisher", pub, "reason", "test", "since", "2026-11-20"))));
+            Map<String, Object> item = M("id", "com.example.hello", "version", "1.0.0", "publisher", pub,
+                "sha256", "0", "source", "plugins/com.example.hello");
+            try { h.install(new File(fix, "01-hello"), true, idx, item); throw new AssertionError("revoked publisher accepted"); }
+            catch (AxpHost.Err e) { ok("INSTALL_REVOKED".equals(e.code), e.code); }
+            // 卸载清理（原 C26 冒烟）：结果必须为 ok:true
+            ok(Boolean.TRUE.equals(h.uninstall("com.example.nostore").get("ok")), "uninstall result must be ok:true");
+        });
 
         int passed = 0;
         StringBuilder out = new StringBuilder("{\n  \"suite\": \"axp-conformance/1.0\",\n  \"runtime\": \"jvm-core\",\n  \"hostLevel\": \"AXP-2\",\n  \"cases\": [\n");

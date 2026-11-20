@@ -219,7 +219,8 @@ public final class AxpHost {
         Set<String> panelNodes = new HashSet<>();
         if (u.get("panel") != null) {
             File pf = new File(dir, Json.str(objOr(u.get("panel"), err).get("entry")));
-            if (pf.exists()) for (Object n : arr(json(pf).get("nodes"))) panelNodes.add(Json.str(objOr(n, err).get("id")));
+            if (!insidePackage(dir, pf)) err.add("UNSAFE_PATH");                 // panel entry 必须在包根内（规范化路径检查）
+            if (pf.exists()) collectNodeIds(json(pf).get("nodes"), panelNodes, err);  // 递归索引：内联 children 里的 id 一并收录
         }
         for (Object bo : arrOr(u.get("bind"), err)) {
             Map<String, Object> b = objOr(bo, err);
@@ -246,6 +247,24 @@ public final class AxpHost {
         return err;
     }
     static List<Object> arr(Object o) { return o instanceof List ? Json.arr(o) : new ArrayList<Object>(); }
+    /** panel 节点 id 递归索引：扁平声明 + children 里的内联对象都算（与渲染遍历一致）；字符串子项是已声明节点的 id 引用，跳过 */
+    static void collectNodeIds(Object nodes, Set<String> out, List<String> err) {
+        for (Object no : arr(nodes)) {
+            if (no instanceof String) continue;
+            Map<String, Object> n = objOr(no, err);
+            String id = Json.str(n.get("id"));
+            if (!id.isEmpty()) out.add(id);
+            if (n.get("children") != null) collectNodeIds(n.get("children"), out, err);
+        }
+    }
+    /** 规范化包含性检查：目标文件必须位于包目录内（防 .. / 符号链接逃逸） */
+    static boolean insidePackage(File dir, File f) {
+        try {
+            String d = dir.getCanonicalPath() + File.separator;
+            String p = f.getCanonicalPath();
+            return p.equals(dir.getCanonicalPath()) || p.startsWith(d);
+        } catch (IOException e) { return false; }
+    }
     static List<String> strings(Object o) { List<String> r = new ArrayList<>(); for (Object x : arr(o)) r.add(Json.str(x)); return r; }
     static void addRef(Set<String> refs, String p) { if (p != null && !p.isEmpty()) refs.add(p); }
     static void collectImpl(Object impl, Set<String> refs) {
@@ -296,6 +315,13 @@ public final class AxpHost {
         if (indexItem != null) {
             if (!Json.str(indexItem.get("publisher")).equals(pub)) throw new Err("INSTALL_PUBLISHER_MISMATCH", "index");
             steps.add("verify-index");
+        }
+        if (indexFile != null && indexFile.exists()) {
+            // 吊销清单（spec/10 §2）：命中即拒，开发模式同样拒绝
+            for (Object ro : arr(json(indexFile).get("revoked"))) {
+                Map<String, Object> rv = Json.obj(ro);
+                if (pub.equals(Json.str(rv.get("publisher")))) throw new Err("INSTALL_REVOKED", pub);
+            }
         }
         Map<String, Object> caps = Json.obj(m.get("capabilities"));
         List<String> confirmList = new ArrayList<>();
@@ -517,7 +543,9 @@ public final class AxpHost {
         if (m.get("ui") == null) return map("ok", Boolean.FALSE, "error", "NO_UI", "id", pluginId);
         Map<String, Object> u = Json.obj(m.get("ui"));
         if (u.get("panel") == null) return map("ok", Boolean.FALSE, "error", "NO_UI", "id", pluginId);
-        Map<String, Object> panel = json(new File(dir, Json.str(Json.obj(u.get("panel")).get("entry"))));
+        File pf = new File(dir, Json.str(Json.obj(u.get("panel")).get("entry")));
+        if (!insidePackage(dir, pf)) throw new Err("UNSAFE_PATH", pf.getPath());
+        Map<String, Object> panel = json(pf);
         Map<String, Object> bindings = new LinkedHashMap<>();
         for (Object bo : arr(u.get("bind"))) {
             Map<String, Object> b = Json.obj(bo);

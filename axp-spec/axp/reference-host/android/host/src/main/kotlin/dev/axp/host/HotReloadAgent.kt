@@ -106,19 +106,23 @@ class HotReloadAgent(
         for (id in oldIds) {
             if (id !in newIds) out += id.split(":", limit = 2).let { (k, r) -> "${KIND2PREFIX[k] ?: k}.$r" }
         }
-        // 既有组件定义变化（data class 相等性比较）
-        if (oldM.tools != newM.tools) out += "tools.*"
+        // 既有组件定义变化：按 id 逐个比较，报告具体组件（tools.<id>）而非笼统 tools.*
+        val oldTools = oldM.tools.associateBy { it.id }
+        for (t in newM.tools) {
+            val o = oldTools[t.id]
+            if (o == null || o != t) out += "tools.${t.id}"
+        }
         if (oldM.surfaces != newM.surfaces) out += "surfaces.*"
         if (oldM.knowledge != newM.knowledge) out += "knowledge.*"
         if (oldM.agents != newM.agents) out += "agents.*"
         if (oldM.events != newM.events) out += "events.*"
         if (oldM.ui != newM.ui) out += "ui.*"
-        // 实现文件内容变化（同一引用在两代目录中的字节不同）
-        for (r in collectRefs(newM)) {
+        // 实现文件内容变化（同一引用在两代目录中的字节不同）→ 归属到具体组件 id
+        for ((r, comp) in collectRefs(newM)) {
             val newF = File(newDir, r)
             val oldF = File(oldDir, r)
             if (newF.exists() && oldF.exists() && newF.readBytes().contentEquals(oldF.readBytes())) continue
-            if (newF.exists() || oldF.exists()) out += refPrefix(r)
+            if (newF.exists() || oldF.exists()) out += (comp ?: refPrefix(r))
         }
         return out.toList()
     }
@@ -133,21 +137,27 @@ class HotReloadAgent(
         else -> "misc.$rel"
     }
 
-    private fun collectRefs(m: AxpManifest): List<String> = buildList {
-        m.entry?.let { add(it.js) }
+    /** 引用 → 所属组件 id：tools/x.js → tools.<toolId>（精确 targets 可命中，通配 targets 兼容） */
+    private fun collectRefs(m: AxpManifest): List<Pair<String, String?>> = buildList {
+        m.entry?.let { add(it.js to "entry") }
         m.tools.forEach { t ->
-            t.impl?.candidates()?.forEach { add(it.second) }
-            t.gradient.values.forEach { g -> g.impl.candidates().forEach { add(it.second) } }
+            t.impl?.candidates()?.forEach { add(it.second to "tools.${t.id}") }
+            t.gradient.values.forEach { g -> g.impl.candidates().forEach { add(it.second to "tools.${t.id}") } }
         }
-        m.surfaces.forEach { s -> s.impl?.candidates()?.forEach { add(it.second) } }
-        m.knowledge.forEach { add(it.entry) }
-        m.agents.forEach { add(it.prompt) }
-        m.events.forEach { e -> e.run.candidates().forEach { add(it.second) } }
+        m.surfaces.forEach { s -> s.impl?.candidates()?.forEach { add(it.second to "surfaces.${s.uri}") } }
+        m.knowledge.forEach { add(it.entry to "knowledge.${it.id}") }
+        m.agents.forEach { add(it.prompt to "agents.${it.id}") }
+        m.events.forEach { e -> e.run.candidates().forEach { add(it.second to "events.${e.on}") } }
         m.ui?.let { ui ->
-            listOfNotNull(ui.panel, ui.widget, ui.web, ui.activity).forEach { add(it.entry) }
-            ui.inject.forEach { add(it.run) }
-            listOfNotNull(ui.lifecycle?.onLoad, ui.lifecycle?.onReload, ui.lifecycle?.onUnload).forEach { add(it) }
+            ui.panel?.let { add(it.entry to "ui.panel") }
+            ui.widget?.let { add(it.entry to "ui.widget") }
+            ui.web?.let { add(it.entry to "ui.web") }
+            ui.activity?.let { add(it.entry to "ui.activity") }
+            ui.inject.forEach { add(it.run to "ui.inject") }
+            ui.lifecycle?.onLoad?.let { add(it to "ui.lifecycle.onLoad") }
+            ui.lifecycle?.onReload?.let { add(it to "ui.lifecycle.onReload") }
+            ui.lifecycle?.onUnload?.let { add(it to "ui.lifecycle.onUnload") }
         }
-        m.hotReload?.state?.migrate?.let { add(it) }
+        m.hotReload?.state?.migrate?.let { add(it to "hotReload.state") }
     }
 }

@@ -94,7 +94,12 @@ node validator/src/validate.mjs plugins/hello
 
 ```bash
 # 发布顺序（缺一不可颠倒）：
-# 1) 先把证书指纹填进源清单 —— 校验器要求 publisher 是 sha256:<64 位十六进制>
+# 0) 先拿到证书指纹（APK v3 签名证书的 SHA-256，64 位十六进制）并导出环境变量；
+#    以下命令任选其一 —— 没有就先 keytool -genkeypair 生成 keystore：
+#      keytool -list -v -keystore release.jks | grep SHA256 | head -1
+#      apksigner verify --print-certs hello.axp   # 对已签名包
+export FINGERPRINT=<把上面输出的 64 位十六进制填到这里>
+# 1) 再把证书指纹填进源清单 —— 校验器要求 publisher 是 sha256:<64 位十六进制>
 #    （开发期可暂用 64 个 0 占位，但分发前 MUST 换成真实指纹）
 node -e "const f='plugins/hello/axp.json',m=require('./'+f);m.distribution.publisher='sha256:'+process.env.FINGERPRINT;require('fs').writeFileSync(f,JSON.stringify(m,null,2))"
 # 2) 再校验 + 打包（此时清单里的指纹已就位）

@@ -12,9 +12,9 @@ import java.nio.ByteBuffer
  * MUST NOT 把插件类注入宿主 PathClassLoader —— 那样永远卸不掉。
  *
  * API 分级（修复 API 26 构造器误用）：
- * - API 26–29 只有单缓冲构造器 InMemoryDexClassLoader(ByteBuffer, ClassLoader)；
- * - API 30+ 才有 InMemoryDexClassLoader(ByteBuffer[], ClassLoader) 多缓冲路径。
- * 多个 DEX 在 API 26–29 上先显式拒绝（在触碰活动代之前），保证替换失败
+ * - API 26 只有单缓冲构造器 InMemoryDexClassLoader(ByteBuffer, ClassLoader)；
+ * - API 27+ 才有 InMemoryDexClassLoader(ByteBuffer[], ClassLoader) 多缓冲路径。
+ * 多个 DEX 在 API 26 上先显式拒绝（在触碰活动代之前），保证替换失败
  * 不会留下「活动插件已卸载、新代加载不了」的中间态。
  */
 class IsolatedLoader {
@@ -32,16 +32,16 @@ class IsolatedLoader {
         val dexFiles = (bundle.listFiles { _, n -> n.endsWith(".dex") } ?: emptyArray()).sortedBy { it.name }
         val dexBytes = dexFiles.map { ByteBuffer.wrap(it.readBytes()) }
         val api = Build.VERSION.SDK_INT
-        if (api < 30 && dexBytes.size > 1) {
-            // 在卸载活动代之前拒绝：多 DEX 需 API 30+ 的多缓冲构造器
+        if (api < 27 && dexBytes.size > 1) {
+            // 在卸载活动代之前拒绝：多 DEX 需 API 27+ 的多缓冲构造器（API 26 仅单缓冲）
             throw UnsupportedOperationException(
-                "InMemoryDexClassLoader supports a single dex buffer on API $api; found ${dexBytes.size} dex files (multi-buffer requires API 30+)")
+                "InMemoryDexClassLoader supports a single dex buffer on API $api; found ${dexBytes.size} dex files (multi-buffer requires API 27+)")
         }
         val parent = this::class.java.classLoader
         val loader = when {
             dexBytes.isEmpty() -> null                                   // 纯 JS 插件：无类需要隔离
-            api < 30 -> InMemoryDexClassLoader(dexBytes[0], parent)      // API 26–29：单缓冲构造器
-            else -> InMemoryDexClassLoader(dexBytes.toTypedArray(), parent)  // API 30+：多缓冲
+            api < 27 -> InMemoryDexClassLoader(dexBytes[0], parent)      // API 26：单缓冲构造器
+            else -> InMemoryDexClassLoader(dexBytes.toTypedArray(), parent)  // API 27+：多缓冲
         }
         val gen = Generation(version = version, loader = loader, dexBytes = dexBytes)
         current?.let { history.addLast(it) }
