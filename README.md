@@ -13,12 +13,13 @@
 
 ## 这个仓库是什么
 
-一个仓库、两层交付：
+一个仓库、两条并行演进的 AXP 线、两层交付：
 
 | 层 | 内容 |
 |---|---|
-| **规范** | AXP v1.1.0 完整文本（11 章，§1–§11）：插件清单 `axp.plugin.json`、六态生命周期、消息封皮、12 项权限目录、保留主题事件总线、Kahn 拓扑激活、心跳健康协议、`agent.memory` 1.1 契约、兼容性策略 |
+| **智能体扩展协议（现行主树）** | AXP v1.1.0 完整文本（11 章，§1–§11）：插件清单 `axp.plugin.json`、六态生命周期、消息封皮、12 项权限目录、保留主题事件总线、Kahn 拓扑激活、心跳健康协议、`agent.memory` 1.1 契约、兼容性策略 |
 | **参考实现 + 交互式站点** | Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui 单页站点：规范在线阅读、内核演练场（真实状态机迁移）、记忆实验室（加权召回实操）、内核源码浏览器、SDK 一键打包下载 |
+| **Agent eXtension Package v1.1.0（全套交付）** | Android 专属插件描述格式的完整交付：`axp-spec/`（21 篇规范 + 6 个 Schema + 真实 CLI + Node 参考运行时 + C01–C26/S01–S09 一致性套件）、`axp-examples/`（8 个示例插件）、`axp-android-host/`（纯 Java 零依赖宿主 App）、`docs/axp-package/`（交付文档与规范全文合订） |
 
 一句话定位：**AXP 定义「宿主与插件之间的边界契约」**——同一插件包不做修改即可运行于任意
 AXP 兼容宿主；所有跨边界通信必须经过总线并留下审计轨迹；能力未声明即拒绝。
@@ -97,15 +98,32 @@ Prisma ORM (SQLite) · Lucide Icons · Zustand
 - 规范文本与参考实现：**Apache-2.0**
 - 站点代码：**Apache-2.0**
 
+## AXP — Agent eXtension Package v1.1.0（Android 插件格式全套交付）
+
+本仓库同时承载 **AXP — Agent eXtension Package**（Android 专属独立插件描述格式）的完整可运行交付，
+与现行主树的「智能体扩展协议」是同名缩写的两条独立线，互不依赖：
+
+| 目录 | 内容 |
+|---|---|
+| [`axp-spec/`](axp-spec/) | 规范主仓：20 篇 spec 正文 + 6 个 Schema、零依赖校验器、真实 `axp install` CLI、Node 参考运行时（AXP-3）、C01–C26 + S01–S09 一致性套件 |
+| [`axp-examples/`](axp-examples/) | 示例仓：8 个官方插件（记忆系统 / PDF-Excel / 压缩解压 / 浏览器自动化等）、`index.json`、校验脚本 |
+| [`axp-android-host/`](axp-android-host/) | Android 宿主 App（纯 Java、零第三方依赖）：插件列表 / SAF 安装 / 插件 UI / Agent 选择 / WebView 执行 `impl.js` |
+| [`docs/axp-package/`](docs/axp-package/) | 交付总索引、v1.0 / v1.1 规范全文合订、实证研究与落地实现说明 |
+
+全套验收命令见 [`docs/axp-package/README-总索引.md`](docs/axp-package/README-总索引.md)；
+CI 已为其配置专用质量门禁（规范自检 / 一致性 / Java core `javac --release 8` 编译跑 C01–C26 / 链接审计）。
+
 ## 仓库沿革
 
-本仓库经历一次整体重设计：
+本仓库经历一次整体重设计，并在其后重新纳入 Android 插件格式线：
 
 - **早期（历史提交完整保留，`git log` 可溯）**：Android 专属插件描述格式 **AXP — Agent eXtension Package**（v1.0–v1.1.1，13 篇规范 + 校验器 + CLI + 参考运行时），配套旧格式样本仓库 [axp-plugin-memory](https://github.com/abysssnare/axp-plugin-memory)
-- **当前（主分支现行树）**：**智能体扩展协议（Agent eXtension Protocol）v1.1.0** 的完整规范、参考内核与交互式站点，即本 README 所述全部内容
+- **当前（主分支现行树）**：**智能体扩展协议（Agent eXtension Protocol）v1.1.0** 的完整规范、参考内核与交互式站点，即本 README 上文所述内容
+- **并行交付（本树 `axp-spec/` + `axp-examples/` + `axp-android-host/` + `docs/axp-package/`）**：Agent eXtension Package 线基于原上游 `Ultra-Guru/axp` 的全面演进——规范扩至 21 章并补齐 M6 分发链路与第 21 章 Android 宿主接入契约，示例库独立成目录，宿主从「未编译 Kotlin 骨架」推进到「纯 Java 真实编译 + C01–C26 双端同表全绿」
 
 ## 相关仓库
 
 | 仓库 | 说明 |
 |---|---|
 | [axp-agent-plugin-memory](https://github.com/abysssnare/axp-agent-plugin-memory) | 首个第三方样本插件：简单记忆系统（`agent.memory` 1.1 完整实现 + 迷你宿主验收驱动） |
+| [axp-plugin-memory](https://github.com/abysssnare/axp-plugin-memory) | 旧格式（Agent eXtension Package）样本插件仓库 |

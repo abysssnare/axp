@@ -41,14 +41,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
 .claude
 .z-ai-config
 *.log
 dev.log
 dev.out.log
-test
-prompt
+# 沙箱临时目录/文件（锚定到仓库根，避免误伤 axp-spec/axp/test/ 等子树）
+/test/
+/prompt
+/local-*
 
 server.log
 # Skills directory
@@ -67,3 +68,5 @@ bun.lock
 
 # 独立测试仓库（拥有自己的 .git）
 /axp-plugin-memory/
+# AXP Android 宿主一致性套件编译产物
+/axp-android-host/conformance/out/

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axp-spec.dev/schema/1.0/index.json",
+  "title": "AXP Plugin Index v1.0",
+  "type": "object",
+  "required": ["axpIndex", "publisher", "updated", "plugins"],
+  "additionalProperties": false,
+  "properties": {
+    "axpIndex": { "const": "1.0" },
+    "publisher": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
+    "updated": { "type": "string" },
+    "revoked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["publisher", "reason", "since"],
+        "additionalProperties": false,
+        "properties": {
+          "publisher": { "type": "string" },
+          "reason": { "type": "string" },
+          "since": { "type": "string" }
+        }
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "name", "channel", "publisher", "sha256", "source", "minAndroid", "abis", "capabilities"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "string" },
+          "name": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string" } },
+          "description": { "type": "string" },
+          "channel": { "enum": ["session-install", "trusted-channel", "preinstall"] },
+          "publisher": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "source": { "type": "string" },
+          "signatureScheme": { "enum": ["apk-v3"] },
+          "minHost": { "type": "string" },
+          "minAndroid": { "type": "integer", "minimum": 26 },
+          "abis": { "type": "array", "items": { "type": "string" } },
+          "requires": { "type": "array", "items": { "type": "object" } },
+          "capabilities": {
+            "type": "object",
+            "required": ["privilege", "requests"],
+            "additionalProperties": false,
+            "properties": {
+              "privilege": { "enum": ["L0","L1","L2","L3","L4","L5"] },
+              "requests": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "ui": { "type": "boolean" },
+          "tools": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

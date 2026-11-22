@@ -1,0 +1,14 @@
+{
+  "axpUi": "1.0",
+  "root": "main",
+  "theme": "host",
+  "state": { "scroll": 0, "lastOrder": null },
+  "nodes": [
+    { "id": "main", "type": "Scaffold", "props": { "title": "自动记账" }, "children": ["title", "tree", "row"] },
+    { "id": "title", "type": "Text", "props": { "text": "最近识别结果", "style": "title" } },
+    { "id": "tree", "type": "Text", "props": { "text": "${surface:axp://vision/screen.text}", "style": "mono", "maxLines": 20 } },
+    { "id": "row", "type": "Row", "props": { "spacing": 8 }, "children": ["ocrBtn", "tapBtn"] },
+    { "id": "ocrBtn", "type": "Button", "props": { "label": "识别账单", "action": "ui.panel.ocr" } },
+    { "id": "tapBtn", "type": "Button", "props": { "label": "点击", "action": "ui.panel.tap" } }
+  ]
+}

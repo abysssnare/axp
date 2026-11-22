@@ -1,0 +1,15 @@
+#!/bin/sh
+# L3 实现体：stdin 收 JSON {path}，stdout 回该文件文本；读不到以非零退出。
+# 由 axp.json 的 tools[file.read].gradient.L3.impl.proc.cmd 声明引用。
+# path 用 JSON 解码器解析（正确处理转义引号）并校验为非空字符串；
+# 无 python3 的环境（Android/Shizuku）由宿主换用自带 JSON 解析器包装。
+path=$(python3 -c 'import json,sys
+try:
+    v = json.load(sys.stdin)
+except Exception:
+    sys.exit(2)
+p = v.get("path") if isinstance(v, dict) else None
+if not isinstance(p, str) or not p:
+    sys.exit(2)
+print(p)' 2>/dev/null) || exit 2
+cat "$path" 2>/dev/null || exit 1

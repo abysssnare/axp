@@ -1,0 +1,82 @@
+{
+  "axp": "1.0",
+  "id": "com.example.office",
+  "name": {
+    "zh": "文档制作",
+    "en": "Office"
+  },
+  "version": "1.0.0",
+  "description": "生成 PDF / Excel 内容，无界面",
+  "minHost": "0.1.0",
+  "minAndroid": 26,
+  "abis": [],
+  "tools": [
+    {
+      "id": "excel.make",
+      "description": "由行数据生成 CSV/Excel 内容",
+      "input": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ]
+      },
+      "impl": {
+        "js": "tools/excel.js"
+      },
+      "sideEffects": "read",
+      "cost": "slow"
+    },
+    {
+      "id": "pdf.make",
+      "description": "由文本生成最小 PDF 文档",
+      "input": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "impl": {
+        "js": "tools/pdf.js"
+      },
+      "sideEffects": "read",
+      "cost": "slow"
+    },
+    {
+      "id": "office.last",
+      "description": "读取上次生成的文档",
+      "input": {
+        "type": "object"
+      },
+      "impl": {
+        "js": "tools/last.js"
+      },
+      "sideEffects": "none",
+      "cost": "fast"
+    }
+  ],
+  "capabilities": {
+    "privilege": "L1",
+    "requests": [
+      "fs.read:shared",
+      "fs.write:shared"
+    ],
+    "runtimeServices": [
+      "storage"
+    ]
+  },
+  "distribution": {
+    "channel": "session-install",
+    "publisher": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "signatureScheme": "apk-v3"
+  }
+}

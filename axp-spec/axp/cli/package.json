@@ -1,0 +1,9 @@
+{
+  "name": "axp-cli",
+  "version": "1.0.0",
+  "description": "AXP plugin tooling: new / validate / pack / inspect / install",
+  "type": "module",
+  "bin": { "axp": "bin/axp.mjs" },
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}
